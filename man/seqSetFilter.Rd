@@ -1,0 +1,67 @@
+\name{seqSetFilter}
+\alias{seqSetFilter}
+\title{Set a filter to sample or variant}
+\description{
+	Set a filter to sample and/or variant
+}
+\usage{
+seqSetFilter(gdsfile, sample.id=NULL, variant.id=NULL, samp.sel=NULL,
+	variant.sel=NULL, verbose=TRUE)
+}
+\arguments{
+	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{sample.id}{IDs of selected samples}
+	\item{variant.id}{IDs of selected variants}
+	\item{samp.sel}{a logical vector indicating the selected samples}
+	\item{variant.sel}{a logical vector indicating the selected variants}
+	\item{verbose}{if TRUE, show information}
+}
+\value{
+	None.
+}
+
+\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\seealso{
+	\code{\link[SeqArray]{seqGetFilter}},
+	\code{\link[SeqArray]{seqGetData}}, \code{\link[SeqArray]{seqApply}}
+}
+
+\examples{
+# the file of GDS
+gds.fn <- seqExampleFileName("gds")
+# or gds.fn <- "C:/YourFolder/Your_GDS_File.gds"
+
+# display
+(f <- seqOpen(gds.fn))
+
+# get 'sample.id
+(samp.id <- seqGetData(f, "sample.id"))
+# "NA06984" "NA06985" "NA06986" ...
+
+# get 'variant.id'
+head(variant.id <- seqGetData(f, "variant.id"))
+
+# get 'chromosome'
+table(seqGetData(f, "chromosome"))
+
+# get 'allele'
+head(seqGetData(f, "allele"))
+# "T,C" "G,A" "G,A" ...
+
+
+# set sample and variant filters
+seqSetFilter(f, sample.id=samp.id[c(2,4,6,8,10)])
+set.seed(100)
+seqSetFilter(f, variant.id=sample(variant.id, 10))
+
+# get genotypic data
+seqGetData(f, "genotype")
+
+
+# close the GDS file
+seqClose(f)
+}
+
+\keyword{gds}
+\keyword{sequencing}
+\keyword{genetics}
