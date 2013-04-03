@@ -1,7 +1,7 @@
 Package: SeqArray
 Type: Package
 Title: Big Data Management of Genome-wide Sequencing Variants
-Version: 1.0.0
+Version: 1.1.0
 Date: 2013-03-14
 Depends: gdsfmt (>= 0.9.12)
 Suggests: parallel, snow
