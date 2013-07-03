@@ -19,9 +19,10 @@ seqVCF.SampID(vcf.fn)
 	Lunter G, Marth GT, Sherry ST, McVean G, Durbin R; 1000 Genomes Project Analysis Group.
 	Bioinformatics. 2011 Aug 1;27(15):2156-8. Epub 2011 Jun 7.
 }
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqVCF.Header}}, \code{\link[SeqArray]{seqVCF2GDS}}
+	\code{\link{seqVCF.Header}}, \code{\link{seqVCF2GDS}}
 }
 
 \examples{

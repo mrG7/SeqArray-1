@@ -18,9 +18,9 @@ seqDelete(gdsfile, info.varname=NULL, format.varname=NULL)
 	None.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqOpen}}, \code{\link[SeqArray]{seqClose}}
+	\code{\link{seqOpen}}, \code{\link{seqClose}}
 }
 
 \examples{

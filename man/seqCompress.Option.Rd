@@ -15,9 +15,9 @@ seqCompress.Option(default="ZIP.MAX", ...)
 	Return a list with a class name "seqCompress.class".
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqVCF2GDS}}
+	\code{\link{seqVCF2GDS}}
 }
 
 \examples{

@@ -38,9 +38,9 @@ of variables, etc. If \code{check = "full.check"}, it performs more checking: un
 sample id, unique variant id, whether genotypic data are in a valid range or not, etc.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqGetData}}, \code{\link[SeqArray]{seqApply}}
+	\code{\link{seqGetData}}, \code{\link{seqApply}}
 }
 
 \examples{

@@ -21,12 +21,12 @@ seqMerge(gds.fn, out.fn, compress.option = seqCompress.Option(),
 \details{
 	The current implementation of \code{seqMerge} extracts and merges the genotypic
 data only without any annotation. Users can specify multiple VCF files in
-\code{\link[SeqArray]{seqVCF2GDS}} to export a single GDS file.
+\code{\link{seqVCF2GDS}} to export a single GDS file.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqVCF2GDS}}
+	\code{\link{seqVCF2GDS}}
 }
 
 \keyword{gds}

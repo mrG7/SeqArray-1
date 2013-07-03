@@ -44,7 +44,8 @@ combine genetic data if VCF data are divided by chromosomes.
 
 	\url{http://corearray.sourceforge.net/}
 }
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+
+\author{Xiuwen Zheng}
 \seealso{
 	\code{\link{seqVCF.Header}}, \code{\link{seqCompress.Option}},
 	\code{\link{seqGDS2VCF}}

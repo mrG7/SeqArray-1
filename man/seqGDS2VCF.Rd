@@ -37,7 +37,8 @@ seqGDS2VCF(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRUE)
 
 	\url{http://corearray.sourceforge.net/}
 }
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+
+\author{Xiuwen Zheng}
 \seealso{
 	\code{\link{seqVCF2GDS}}
 }

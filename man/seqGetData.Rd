@@ -21,9 +21,9 @@ seqGetData(gdsfile, var.name)
 \code{"annotation/info/VARIABLE_NAME"}, or \code{"annotation/format/VARIABLE_NAME"}.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqSetFilter}}, \code{\link[SeqArray]{seqApply}}
+	\code{\link{seqSetFilter}}, \code{\link{seqApply}}
 }
 
 \examples{

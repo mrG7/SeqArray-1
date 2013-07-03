@@ -19,7 +19,7 @@ or the file name of a GDS file if \code{type = "gds"}.
 the 1000 Genomes Project.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 
 \examples{
 seqExampleFileName("gds")

@@ -20,10 +20,10 @@ seqSetFilter(gdsfile, sample.id=NULL, variant.id=NULL, samp.sel=NULL,
 	None.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqGetFilter}},
-	\code{\link[SeqArray]{seqGetData}}, \code{\link[SeqArray]{seqApply}}
+	\code{\link{seqGetFilter}},
+	\code{\link{seqGetData}}, \code{\link{seqApply}}
 }
 
 \examples{

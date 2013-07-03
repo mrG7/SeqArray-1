@@ -1,8 +1,18 @@
 # Load the shared object
 useDynLib(SeqArray)
 
-# Export all names
-exportPattern(".")
-
 # Import all packages listed as Imports or Depends
 import(gdsfmt)
+
+import(methods)
+import(Biostrings)
+import(IRanges)
+import(GenomicRanges)
+
+# Export all names
+exportPattern("^seq*")
+export(.onAttach, .Last.lib)
+
+exportClasses(SeqVarGDSClass)
+
+exportMethods(granges, ref, alt)

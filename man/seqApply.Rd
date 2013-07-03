@@ -9,7 +9,7 @@ of arrays or matrices
 seqApply(gdsfile, var.name, FUN,
 	margin = c("by.variant"),
 	as.is = c("list", "integer", "double", "character", "none"),
-	var.index = FALSE, ...)
+	var.index = c("none", "relative", "absolute"), ...)
 }
 \arguments{
 	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
@@ -18,10 +18,12 @@ seqApply(gdsfile, var.name, FUN,
 	\item{margin}{giving the dimension which the function will be applied
 		over. E.g., for a matrix 1 indicates rows, 2 indicates columns}
 	\item{as.is}{returned value: a list, an integer vector, etc}
-	\item{var.index}{if TRUE, add an argument to the user-defined function
-		\code{FUN} like \code{FUN(index, x, ...)} where \code{index} is an index of
-		variant starting from 1 if \code{margin = "by.variant"};
-		otherwise call \code{FUN(x, ...)}}
+	\item{var.index}{if \code{"none"}, call \code{FUN(x, ...)} with variable
+		index; if \code{"relative"} or \code{"absolute"}, add an argument to
+		the user-defined function \code{FUN} like \code{FUN(index, x, ...)}
+		where \code{index} is an index of variant starting from 1 if
+		\code{margin = "by.variant"}: \code{"relative"} for indexing in the
+		selection, \code{"absolute"} for indexing all data}
 	\item{...}{optional arguments to \code{FUN}}
 }
 \details{
@@ -37,11 +39,11 @@ high-speed memory instead of disk.
 	A vector or list of values.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqSetFilter}},
-	\code{\link[SeqArray]{seqGetData}},
-	\code{\link[SeqArray]{seqParallel}}
+	\code{\link{seqSetFilter}},
+	\code{\link{seqGetData}},
+	\code{\link{seqParallel}}
 }
 
 \examples{
@@ -79,7 +81,7 @@ seqApply(f, "allele",
 
 seqApply(f, c(geno="genotype", phase="phase", qual="annotation/id"),
 	FUN=function(index, x) { print(index); print(x); index },
-	as.is="integer", var.index=TRUE)
+	as.is="integer", var.index="relative")
 # it is as the same as
 which(seqGetFilter(f)$variant.sel)
 
@@ -91,7 +93,8 @@ seqSetFilter(f)
 
 # calculate the frequency of reference allele,
 #   a faster version could be obtained by C coding
-af <- seqApply(f, "genotype", FUN=function(x) mean(x==0, na.rm=TRUE), as.is="double")
+af <- seqApply(f, "genotype", FUN=function(x) mean(x==0, na.rm=TRUE),
+	as.is="double")
 length(af)
 summary(af)
 

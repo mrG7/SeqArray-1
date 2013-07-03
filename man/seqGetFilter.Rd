@@ -21,9 +21,9 @@ seqGetFilter(gdsfile)
 internal data for \code{seqGetData}, \code{seqApply}, etc.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqGetData}}, \code{\link[SeqArray]{seqApply}}
+	\code{\link{seqGetData}}, \code{\link{seqApply}}
 }
 
 \examples{

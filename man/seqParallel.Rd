@@ -29,11 +29,11 @@ processes.
 	A vector or list of values.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqSetFilter}},
-	\code{\link[SeqArray]{seqGetData}}
-	\code{\link[SeqArray]{seqApply}}
+	\code{\link{seqSetFilter}},
+	\code{\link{seqGetData}}
+	\code{\link{seqApply}}
 }
 
 \examples{

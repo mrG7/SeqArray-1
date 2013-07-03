@@ -17,9 +17,9 @@ seqClose(gdsfile)
 	It is strongly suggested to call \code{seqClose} instead of \code{\link[gdsfmt]{closefn.gds}}.
 }
 
-\author{Xiuwen Zheng \email{zhengx@u.washington.edu}}
+\author{Xiuwen Zheng}
 \seealso{
-	\code{\link[SeqArray]{seqOpen}}
+	\code{\link{seqOpen}}
 }
 
 \examples{
