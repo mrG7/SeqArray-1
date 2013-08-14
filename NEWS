@@ -1,3 +1,9 @@
+Changes in 1.1.2:
+
+	* added methods 'qual', 'filt', 'asVCF'
+	* 'granges' method uses length of reference allele to set width
+
+
 Changes in 1.1.1:
 
 	* revise the argument 'var.index' in the function 'seqApply'
