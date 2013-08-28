@@ -11,7 +11,7 @@ seqParallel(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
 \arguments{
 	\item{cl}{NULL or a cluster object, created by the package \link[parallel]{parallel}
 		or \href{http://CRAN.R-project.org/package=snow}{snow}}
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{FUN}{the function to be applied}
 	\item{split}{split the dataset by variant or sample according to multiple
 		processes, or "none" for no split}

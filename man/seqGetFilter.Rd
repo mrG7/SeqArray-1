@@ -8,7 +8,7 @@
 seqGetFilter(gdsfile)
 }
 \arguments{
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 }
 \value{
 	Return a list:

@@ -131,6 +131,14 @@ COREARRAY_INLINE static Int64 CHECK(Int64 retval)
 		throw ErrSeqArray(gds_LastError());
 	return retval;
 }
+/// check CoreArray function
+COREARRAY_INLINE static size_t CHECK_SIZE(size_t retval)
+{
+	if (retval == ((size_t)-1))
+		throw ErrSeqArray(gds_LastError());
+	return retval;
+}
+
 
 /// check CoreArray function
 COREARRAY_INLINE const char *SKIP(const char *p)
@@ -777,7 +785,10 @@ public:
 
 		Num_Sample = 0;
 		for (int i=0; i < nSample; i ++)
-			if (SampleSel[i]) Num_Sample ++;
+		{
+			if (SampleSel[i])
+				Num_Sample ++;
+		}
 
 		string Path2; // the path with '@'
 
@@ -890,8 +901,9 @@ public:
 		if (Type == ctGenotype)
 		{
 			CellCount = Num_Sample * DLen[2];
-			if (CellCount > (int)Init.GENO_BUFFER.size())
-				Init.GENO_BUFFER.resize(CellCount);
+			int SlideCnt = DLen[1] * DLen[2];
+			if (SlideCnt > (int)Init.GENO_BUFFER.size())
+				Init.GENO_BUFFER.resize(SlideCnt);
 		}
 	}
 
@@ -926,23 +938,51 @@ public:
 	void ReadGenoData(int *Base)
 	{
 		// the size of Init.GENO_BUFFER has been check in 'Init()'
-		DLen[0] = 1;
-		SelPtr[0] = &Init.TRUE_ARRAY[0];
-		int st[3] = { IndexCellVariant, 0, 0 };
+		int SlideCnt = DLen[1]*DLen[2];
 
-		CHECK(gds_rDataEx(Node, st, DLen, SelPtr, Base, svInt32));
+		TdIterator it;
+		CHECK(gds_IterGetStart(Node, it));
+		CHECK(gds_IterAdvEx(it, IndexCellVariant*SlideCnt));
+		CHECK_SIZE(gds_IterRData(it, &Init.GENO_BUFFER[0], SlideCnt, svUInt8));
+		UInt8 *s = &Init.GENO_BUFFER[0];
+		int *p = Base;
+		for (int i=0; i < DLen[1]; i++)
+		{
+			if (SelPtr[1][i])
+			{
+				for (int j=0; j < DLen[2]; j++)
+					*p++ = *s++;
+			} else {
+				s += DLen[2];
+			}
+		}
+
 		int missing = 3;
 
 		// CellCount = Num_Sample * DLen[2] in 'NeedRData'
-		for (int i=1; i < NumCellVariant; i ++)
+		for (int idx=1; idx < NumCellVariant; idx ++)
 		{
-			st[0] ++;
-			UInt8 *s = &Init.GENO_BUFFER[0];
-			CHECK(gds_rDataEx(Node, st, DLen, SelPtr, s, svUInt8));
-			int shift = i*2;
-			int *p = Base;
-			for (int n=CellCount; n > 0; n--, p++, s++)
-				*p |= int(*s) << shift;
+			CHECK(gds_IterGetStart(Node, it));
+			CHECK(gds_IterAdvEx(it, (IndexCellVariant + idx)*SlideCnt));
+			CHECK_SIZE(gds_IterRData(it, &Init.GENO_BUFFER[0], SlideCnt, svUInt8));
+
+			int shift = idx*2;
+			s = &Init.GENO_BUFFER[0];
+			p = Base;
+			for (int i=0; i < DLen[1]; i++)
+			{
+				if (SelPtr[1][i])
+				{
+					for (int j=0; j < DLen[2]; j++)
+					{
+						*p |= int(*s) << shift;
+						p ++; s ++;
+					}
+				} else {
+					s += DLen[2];
+				}
+			}
+
 			missing = (missing << 2) | 0x03;
 		}
 		for (int n=CellCount; n > 0; n--)
@@ -1820,6 +1860,7 @@ DLLEXPORT SEXP seq_GetData(SEXP gds_file, SEXP var_name)
 			} else {
 				rv_ans = _(gds_Read_SEXP(N, NULL, NULL, NULL));
 			}
+
 		} else if (strcmp(s, "genotype") == 0)
 		{
 			// *******************************************************
@@ -1997,20 +2038,27 @@ DLLEXPORT SEXP seq_GetData(SEXP gds_file, SEXP var_name)
 				for (int i=0; i < (int)len.size(); i++)
 					base[i] = len[i];
 				SET_ELEMENT(rv_ans, 0, I32);
-				SET_ELEMENT(rv_ans, 1,
-					_(gds_Read_SEXP(N, DStart, DLen, &SelPtr[0])));
+				SEXP DAT = _(gds_Read_SEXP(N, DStart, DLen, &SelPtr[0]));
+				SET_ELEMENT(rv_ans, 1, DAT);
 			PROTECT(tmp = NEW_CHARACTER(2));
 				SET_STRING_ELT(tmp, 0, mkChar("length"));
 				SET_STRING_ELT(tmp, 1, mkChar("data"));
 				SET_NAMES(rv_ans, tmp);
-			SEXP name_list;
-			PROTECT(name_list = NEW_LIST(DimCnt));
-			PROTECT(tmp = NEW_CHARACTER(DimCnt));
-				SET_STRING_ELT(tmp, 0, mkChar("sample"));
-				SET_STRING_ELT(tmp, 1, mkChar("variant"));
-				SET_NAMES(name_list, tmp);
-			SET_DIMNAMES(VECTOR_ELT(rv_ans, 1), name_list);
-			UNPROTECT(5);
+
+				if (Rf_length(DAT) > 0)
+				{
+					SEXP name_list;
+					PROTECT(name_list = NEW_LIST(DimCnt));
+					PROTECT(tmp = NEW_CHARACTER(DimCnt));
+						SET_STRING_ELT(tmp, 0, mkChar("sample"));
+						SET_STRING_ELT(tmp, 1, mkChar("variant"));
+						SET_NAMES(name_list, tmp);
+					SET_DIMNAMES(VECTOR_ELT(rv_ans, 1), name_list);
+					UNPROTECT(5);
+				} else {
+					UNPROTECT(3);
+				}
+
 		} else {
 			throw ErrSeqArray("'%s' is not a standard variable name, and the standard format:\n"
 				"\tsample.id, variant.id, position, chromosome, allele, "
@@ -2035,7 +2083,6 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 	SEXP FUN, SEXP as_is, SEXP var_index, SEXP rho)
 {
 	SEXP rv_ans = R_NilValue;
-
 	CORETRY_CALL
 
 		// the selection
@@ -2203,12 +2250,14 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 		bool ifend = false;
 		int ans_index = 0;
 		do {
-			if (VarIdx > 1)
+			switch (VarIdx)
 			{
-				if (VarIdx == 2)
+				case 2:
 					INTEGER(R_Index)[0] = ans_index + 1;
-				else
+					break;
+				case 3:
 					INTEGER(R_Index)[0] = NodeList.begin()->_Index + 1;
+					break;
 			}
 			if (NodeList.size() <= 1)
 			{
@@ -2244,13 +2293,19 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 			switch (DatType)
 			{
 			case 0:    // integer
-				INTEGER(rv_ans)[ans_index] = INTEGER(AS_INTEGER(val))[0];
+				val = AS_INTEGER(val);
+				INTEGER(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+					INTEGER(val)[0] : NA_INTEGER;
 				break;
 			case 1:    // double
-				REAL(rv_ans)[ans_index] = REAL(AS_NUMERIC(val))[0];
+				val = AS_NUMERIC(val);
+				REAL(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+					REAL(val)[0] : R_NaN;
 				break;
 			case 2:    // character
-				SET_STRING_ELT(rv_ans, ans_index, STRING_ELT(AS_CHARACTER(val), 0));
+				val = AS_CHARACTER(val);
+				SET_STRING_ELT(rv_ans, ans_index,
+					(LENGTH(val) > 0) ? STRING_ELT(val, 0) : NA_STRING);
 				break;
 			case 3:    // others
 				if (NAMED(val) > 0)
@@ -2258,7 +2313,7 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 					// the object is bound to other symbol(s), need a copy
 					val = duplicate(val);
 				}
-				SET_VECTOR_ELT(rv_ans, ans_index, val);
+				SET_ELEMENT(rv_ans, ans_index, val);
 				break;
 			}
 			ans_index ++;
@@ -2281,6 +2336,302 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 	return(rv_ans);
 }
 
+
+
+// ###########################################################
+// Apply functions via a sliding window over variants
+// ###########################################################
+
+/// Apply functions via a sliding window over variants
+DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
+	SEXP FUN, SEXP as_is, SEXP var_index, SEXP rho)
+{
+	SEXP rv_ans = R_NilValue;
+	CORETRY_CALL
+
+		// the selection
+		TInitObject::TSelection &Sel =
+			Init.Map[*INTEGER(getListElement(gds_file, "id"))];
+		// the GDS root node
+		PdGDSObj Root = GDS_OBJECT(getListElement(gds_file, "root"));
+
+		// init selection
+		if (Sel.Sample.empty())
+		{
+			PdSequenceX N = CHECK(gds_NodePath(Root, "sample.id"));
+			int Cnt = gds_SeqGetCount(N);
+			if (Cnt < 0) throw ErrSeqArray("Invalid dimension of 'sample.id'.");
+			Sel.Sample.resize(Cnt, TRUE);
+		}
+		if (Sel.Variant.empty())
+		{
+			PdSequenceX N = CHECK(gds_NodePath(Root, "variant.id"));
+			int Cnt = gds_SeqGetCount(N);
+			if (Cnt < 0) throw ErrSeqArray("Invalid dimension of 'variant.id'.");
+			Sel.Variant.resize(Cnt, TRUE);
+		}
+
+		// the number of calling PROTECT
+		int nProtected = 0;
+		// the number of selected variants
+		int nVariant = 0;
+		for (vector<CBOOL>::iterator it = Sel.Variant.begin();
+			it != Sel.Variant.end(); it ++)
+		{
+			if (*it) nVariant ++;
+		}
+		if (nVariant <= 0)
+			throw ErrSeqArray("There is no selected variant.");
+
+		// sliding window size
+		int wsize = INTEGER(win_size)[0];
+		if ((wsize > nVariant) || (wsize <= 0))
+			throw ErrSeqArray("`win.size' is out of range (1..%d).", nVariant);
+
+
+		// ***************************************************************
+		// initialize the GDS Node list
+
+		vector<TVariable_ApplyByVariant> NodeList(Rf_length(var_name));
+		vector<TVariable_ApplyByVariant>::iterator it;
+
+		// for - loop
+		for (int i=0; i < Rf_length(var_name); i++)
+		{
+			// the path of GDS variable
+			string s = CHAR(STRING_ELT(var_name, i));
+			TVariable_ApplyByVariant::TType VarType;
+
+			if ( s=="variant.id" || s=="position" || s=="chromosome" ||
+				s=="allele" || s=="annotation/id" || s=="annotation/qual" ||
+				s=="annotation/filter" )
+			{
+				// ***********************************************************
+				// variant.id, position, chromosome, allele, annotation/id
+				// annotation/qual, annotation/filter
+				VarType = TVariable_ApplyByVariant::ctBasic;
+			} else if (s == "genotype")
+			{
+				VarType = TVariable_ApplyByVariant::ctGenotype;
+				s.append("/data");
+			} else if (s == "phase")
+			{
+				// *******************************************************
+				// phase/
+				VarType = TVariable_ApplyByVariant::ctPhase;
+				s.append("/data");
+			} else if (strncmp(s.c_str(), "annotation/info/", 16) == 0)
+			{
+				VarType = TVariable_ApplyByVariant::ctInfo;
+			} else if (strncmp(s.c_str(), "annotation/format/", 18) == 0)
+			{
+				VarType = TVariable_ApplyByVariant::ctFormat;
+				s.append("/data");
+			} else {
+				throw ErrSeqArray("'%s' is not a standard variable name, and the standard format:\n"
+					"\tvariant.id, position, chromosome, allele, "
+					"annotation/id, annotation/qual, annotation/filter\n"
+					"\tannotation/info/VARIABLE_NAME', annotation/format/VARIABLE_NAME",
+					s.c_str());
+			}
+
+			NodeList[i].InitObject(VarType, s.c_str(), Root, Sel.Variant.size(),
+				&Sel.Variant[0], Sel.Sample.size(), &Sel.Sample[0]);
+		}
+
+		// ***********************************************************
+		// as.is
+		//     0: integer, 1: double, 2: character, 3: list, other: NULL
+		int DatType;
+		const char *as = CHAR(STRING_ELT(as_is, 0));
+		if (strcmp(as, "integer") == 0)
+			DatType = 0;
+		else if (strcmp(as, "double") == 0)
+			DatType = 1;
+		else if (strcmp(as, "character") == 0)
+			DatType = 2;
+		else if (strcmp(as, "list") == 0)
+			DatType = 3;
+		else if (strcmp(as, "none") == 0)
+			DatType = -1;
+		else
+			throw ErrSeqArray("'as.is' is not valid!");
+
+		// init return values
+		// int DatType;  //< 0: integer, 1: double, 2: character, 3: list, other: NULL
+		switch (DatType)
+		{
+		case 0:
+			PROTECT(rv_ans = NEW_INTEGER(nVariant - wsize + 1));
+			nProtected ++;
+			break;
+		case 1:
+			PROTECT(rv_ans = NEW_NUMERIC(nVariant - wsize + 1));
+			nProtected ++;
+			break;
+		case 2:
+			PROTECT(rv_ans = NEW_CHARACTER(nVariant - wsize + 1));
+			nProtected ++;
+			break;
+		case 3:
+			PROTECT(rv_ans = NEW_LIST(nVariant - wsize + 1));
+			nProtected ++;
+			break;
+		default:
+			rv_ans = R_NilValue;
+		}
+
+		// ***********************************************************
+		// rho
+		if (!isEnvironment(rho))
+			throw ErrSeqArray("'rho' should be an environment");
+
+
+		// ***************************************************************
+		// initialize calling
+
+		// 1 -- none, 2 -- relative, 3 -- absolute
+		int VarIdx = INTEGER(var_index)[0];
+
+		SEXP R_fcall, R_call_param, R_Index=NULL;
+		PROTECT(R_call_param = NEW_LIST(wsize));
+		nProtected ++;
+		if (VarIdx > 1)
+		{
+			PROTECT(R_Index = NEW_INTEGER(1));
+			nProtected ++;
+			PROTECT(R_fcall = LCONS(FUN, LCONS(R_Index,
+				LCONS(R_call_param, LCONS(R_DotsSymbol, R_NilValue)))));
+			nProtected ++;
+		} else {
+			PROTECT(R_fcall = LCONS(FUN,
+				LCONS(R_call_param, LCONS(R_DotsSymbol, R_NilValue))));
+			nProtected ++;
+		}
+
+
+		// ***************************************************************
+		// for-loop calling
+
+		// initialize the sliding window
+		for (int i=1; i < wsize; i++)
+		{
+			if (NodeList.size() > 1)
+			{
+				SEXP _param = NEW_LIST(NodeList.size());
+				SET_ELEMENT(R_call_param, i, _param);
+				SET_NAMES(_param, GET_NAMES(var_name));
+
+				int idx = 0;
+				for (it=NodeList.begin(); it != NodeList.end(); it ++)
+				{
+					SEXP tmp = it->NeedRData(nProtected);
+					it->ReadData(tmp);
+					SET_ELEMENT(_param, idx, duplicate(tmp));
+					idx ++;
+				}
+			} else {
+				SEXP tmp = NodeList[0].NeedRData(nProtected);
+				NodeList[0].ReadData(tmp);
+				SET_ELEMENT(R_call_param, i, duplicate(tmp));
+			}
+
+			// check the end
+			for (it=NodeList.begin(); it != NodeList.end(); it ++)
+			{
+				if (!it->NextCell())
+					throw ErrSeqArray("internal error in 'seq_SlidingWindow'");
+			}
+		}
+
+		int ans_index = 0;
+		bool ifend = false;
+		do {
+			// push
+			for (int i=1; i < wsize; i++)
+			{
+				SET_ELEMENT(R_call_param, i-1,
+					VECTOR_ELT(R_call_param, i));
+			}
+			SET_ELEMENT(R_call_param, wsize-1, R_NilValue);
+
+			if (NodeList.size() > 1)
+			{
+				SEXP _param = NEW_LIST(NodeList.size());
+				SET_ELEMENT(R_call_param, wsize-1, _param);
+				SET_NAMES(_param, GET_NAMES(var_name));
+
+				int idx = 0;
+				for (it=NodeList.begin(); it != NodeList.end(); it ++)
+				{
+					SEXP tmp = it->NeedRData(nProtected);
+					it->ReadData(tmp);
+					SET_ELEMENT(_param, idx, duplicate(tmp));
+					idx ++;
+				}
+			} else {
+				SEXP tmp = NodeList[0].NeedRData(nProtected);
+				NodeList[0].ReadData(tmp);
+				SET_ELEMENT(R_call_param, wsize-1, duplicate(tmp));
+			}
+
+			switch (VarIdx)
+			{
+				case 2:
+					INTEGER(R_Index)[0] = ans_index + 1;
+					break;
+				case 3:
+					INTEGER(R_Index)[0] = NodeList.begin()->_Index - wsize + 2;
+					break;
+			}
+
+			// call R function
+			SEXP val = eval(R_fcall, rho);
+			switch (DatType)
+			{
+			case 0:    // integer
+				val = AS_INTEGER(val);
+				INTEGER(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+					INTEGER(val)[0] : NA_INTEGER;
+				break;
+			case 1:    // double
+				val = AS_NUMERIC(val);
+				REAL(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+					REAL(val)[0] : R_NaN;
+				break;
+			case 2:    // character
+				val = AS_CHARACTER(val);
+				SET_STRING_ELT(rv_ans, ans_index,
+					(LENGTH(val) > 0) ? STRING_ELT(val, 0) : NA_STRING);
+				break;
+			case 3:    // others
+				if (NAMED(val) > 0)
+				{
+					// the object is bound to other symbol(s), need a copy
+					val = duplicate(val);
+				}
+				SET_ELEMENT(rv_ans, ans_index, val);
+				break;
+			}
+			ans_index ++;
+
+			// check the end
+			for (it=NodeList.begin(); it != NodeList.end(); it ++)
+			{
+				if (!it->NextCell())
+					{ ifend = true; break; }
+			}
+
+		} while (!ifend);
+
+		// finally
+		UNPROTECT(nProtected);
+
+	CORECATCH_CALL
+
+	// output
+	return(rv_ans);
+}
 
 
 

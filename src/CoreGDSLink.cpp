@@ -48,6 +48,47 @@ void ErrCoreArray::Init(const char *fmt, va_list arglist)
 }
 
 
+// Functions for CdContainer - TdIterator
+
+typedef int (*TIterGet)(PdContainer Node, TdIterator &Out);
+static TIterGet _IterGetStart = NULL;
+bool GDSInterface::gds_IterGetStart(PdContainer Node, TdIterator &Out)
+	{ return (*_IterGetStart)(Node, Out); }
+
+static TIterGet _IterGetEnd = NULL;
+bool GDSInterface::gds_IterGetEnd(PdContainer Node, TdIterator &Out)
+	{ return (*_IterGetEnd)(Node, Out); }
+
+typedef bool (*TIterStep)(TdIterator &Iter);
+static TIterStep _IterAdv = NULL;
+bool GDSInterface::gds_IterAdv(TdIterator &Iter)
+	{ return (*_IterAdv)(Iter); }
+
+typedef bool (*TIterStepEx)(TdIterator &Iter, const ssize_t offset);
+static TIterStepEx _IterAdvEx = NULL;
+bool GDSInterface::gds_IterAdvEx(TdIterator &Iter, const ssize_t offset)
+	{ return (*_IterAdvEx)(Iter, offset); }
+
+static TIterStep _IterPrev = NULL;
+bool GDSInterface::gds_IterPrev(TdIterator &Iter)
+	{ return (*_IterPrev)(Iter); }
+
+static TIterStepEx _IterPrevEx = NULL;
+bool GDSInterface::gds_IterPrevEx(TdIterator &Iter, const ssize_t offset)
+	{ return (*_IterPrevEx)(Iter, offset); }
+
+typedef bool (*TIterRData)(TdIterator &Iter, void *OutBuf, size_t Cnt, TSVType OutSV);
+static TIterRData _IterRData = NULL;
+size_t GDSInterface::gds_IterRData(TdIterator &Iter, void *OutBuf, size_t Cnt, TSVType OutSV)
+	{ return (*_IterRData)(Iter, OutBuf, Cnt, OutSV); }
+
+typedef bool (*TIterWData)(TdIterator &Iter, const void *InBuf, size_t Cnt, TSVType InSV);
+static TIterWData _IterWData = NULL;
+size_t GDSInterface::gds_IterWData(TdIterator &Iter, const void *InBuf, size_t Cnt, TSVType InSV)
+	{ return (*_IterWData)(Iter, InBuf, Cnt, InSV); }
+
+
+
 // get the degree of dimension
 typedef int (*TAttrNameIndex)(PdGDSObj obj, const char *Name);
 static TAttrNameIndex _AttrNameIndex = NULL;
@@ -386,6 +427,17 @@ void GDSInterface::InitGDSInterface(const char *lib_fn)
 	#endif
 
 	// load functions
+
+	LOAD(_IterGetStart, TIterGet, "gds_IterGetStart");
+	LOAD(_IterGetEnd, TIterGet, "gds_IterGetEnd");
+	LOAD(_IterAdv, TIterStep, "gds_IterAdv");
+	LOAD(_IterAdvEx, TIterStepEx, "gds_IterAdvEx");
+	LOAD(_IterPrev, TIterStep, "gds_IterPrev");
+	LOAD(_IterPrevEx, TIterStepEx, "gds_IterPrevEx");
+	LOAD(_IterRData, TIterRData, "gds_IterRData");
+	LOAD(_IterWData, TIterWData, "gds_IterWData");
+
+
 	LOAD(_AttrNameIndex, TAttrNameIndex, "gds_AttrNameIndex");
 
 	LOAD(_NodePath, TNodePath, "gds_NodePath");

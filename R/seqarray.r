@@ -13,6 +13,136 @@
 
 
 #######################################################################
+# interal call functions
+#
+
+.DynamicClusterCall <- function(cl, .num, .fun, .combinefun,
+	.stopcluster, ...)
+{
+	# the functions are all defined in 'parallel/R/snow.R'
+	postNode <- function(con, type, value = NULL, tag = NULL)
+	{
+		parallel:::sendData(con, list(type = type, data = value, tag = tag))
+	}
+	sendCall <- function(con, fun, args, return = TRUE, tag = NULL)
+	{
+		postNode(con, "EXEC",
+			list(fun = fun, args = args, return = return, tag = tag))
+		NULL
+	}
+	recvOneResult <- function(cl)
+	{
+		v <- parallel:::recvOneData(cl)
+		list(value = v$value$value, node = v$node, tag = v$value$tag)
+	}
+
+
+	#################################################################
+	# check
+	stopifnot(is.null(cl) | inherits(cl, "cluster"))
+	stopifnot(is.numeric(.num))
+	stopifnot(is.function(.fun))
+	stopifnot(is.null(.combinefun) | is.character(.combinefun) |
+		is.function(.combinefun))
+	stopifnot(is.logical(.stopcluster))
+
+	if (!is.null(cl))
+	{
+		############################################################
+		# parallel implementation
+
+		if (is.null(.combinefun))
+			ans <- vector("list", .num)
+		else
+			ans <- NULL
+
+		p <- length(cl)
+		if ((.num > 0L) && p)
+		{
+			## **** this closure is sending to all nodes
+			argfun <- function(i) c(i, list(...))
+
+			submit <- function(node, job)
+				sendCall(cl[[node]], .fun, argfun(job), tag = job)
+
+			for (i in 1:min(.num, p)) submit(i, i)
+			for (i in seq_len(.num))
+			{
+				d <- recvOneResult(cl)
+				j <- i + min(.num, p)
+
+				stopflag <- FALSE
+				if (j <= .num)
+				{
+					submit(d$node, j)
+				} else {
+					if (.stopcluster)
+					{
+						stopCluster(cl[d$node])
+						cl <- cl[-d$node]
+						stopflag <- TRUE
+					}
+				}
+
+				dv <- d$value
+				if (inherits(dv, "try-error"))
+				{
+					if (.stopcluster)
+						stopCluster(cl)
+					stop("One node produced an error: ", as.character(dv))
+				}
+
+				if (!is.character(.combinefun))
+				{
+					if (is.null(.combinefun))
+					{
+						ans[[d$tag]] <- dv
+					} else {
+						if (is.null(ans))
+							ans <- dv
+						else
+							ans <- .combinefun(ans, dv)
+					}
+				}
+
+				if (stopflag)
+					message(sprintf("Stop \"job %d\".", d$node))
+			}
+		}
+	} else {
+
+		############################################################
+		# serial implementation
+
+		if (is.null(.combinefun))
+		{
+			ans <- vector("list", .num)
+			for (i in seq_len(.num))
+				ans[[i]] <- .fun(i, ...)
+		} else if (is.character(.combinefun))
+		{
+			for (i in seq_len(.num)) .fun(i, ...)
+			ans <- NULL
+		} else {
+			ans <- NULL
+			for (i in seq_len(.num))
+			{
+				dv <- .fun(i, ...)
+				if (is.null(ans))
+					ans <- dv
+				else
+					ans <- .combinefun(ans, dv)
+			}
+		}
+	}
+
+	ans
+}
+
+
+
+
+#######################################################################
 # Get the file name of an example
 #
 
@@ -174,6 +304,39 @@ seqApply <- function(gdsfile, var.name, FUN,
 
 
 #######################################################################
+# Apply functions via a sliding window over variants
+#
+
+seqSlidingWindow <- function(gdsfile, var.name, win.size, FUN,
+    as.is = c("list", "integer", "double", "character", "none"),
+    var.index = c("none", "relative", "absolute"), ...)
+{
+    # check
+    stopifnot(inherits(gdsfile, "SeqVarGDSClass"))
+    stopifnot(is.character(var.name) & (length(var.name) > 0))
+
+    stopifnot(is.numeric(win.size) & (length(win.size)==1))
+    win.size <- as.integer(win.size)
+    stopifnot(is.finite(win.size))
+    if (win.size <= 0)
+        stop("`win.size' should be greater than 0.")
+
+    as.is <- match.arg(as.is)
+    var.index <- match.arg(var.index)
+    var.index <- match(var.index, c("none", "relative", "absolute"))
+
+    FUN <- match.fun(FUN)
+
+    # C call
+    rv <- .Call("seq_SlidingWindow", gdsfile, var.name, win.size, FUN, as.is,
+        var.index, new.env(), PACKAGE="SeqArray")
+
+    if (as.is == "none") return(invisible())
+    rv
+}
+
+
+#######################################################################
 # Apply functions in parallel
 #
 
@@ -212,7 +375,7 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
         if (!require(parallel))
         {
             if (!require(snow))
-                stop("the `parallel' or `snow' package should be installed.")
+                stop("the `parallel' package should be installed.")
         }
 
         # the selected variants
@@ -223,7 +386,7 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
             stop("No selected variants!")
 
         # enumerate
-        rv <- clusterApply(cl, seq_len(length(cl)), fun =
+		ans <- .DynamicClusterCall(cl, length(cl), .fun =
             function(.idx, .n_process, .gds.fn, .selection, FUN, .split, ...)
         {
             # load the package
@@ -251,25 +414,13 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
             # call
             FUN(gfile, ...)
 
-        }, .n_process = length(cl), .gds.fn = gdsfile$filename,
+        }, .combinefun = .combine, .stopcluster=FALSE,
+        	.n_process = length(cl), .gds.fn = gdsfile$filename,
             .selection = selection, FUN = FUN, .split = split, ...
         )
 
-        if (is.null(.combine))
-        {
-            ans <- unlist(rv, recursive=FALSE)
-        } else {
-            if (!is.character(.combine))
-            {
-                ans <- rv[[1]]
-                for (i in 2:length(rv))
-                {
-                    if (!is.null(rv[[i]]))
-                        ans <- .combine(ans, rv[[i]])
-                }
-            } else
-                ans <- rv
-        }
+        if (is.list(ans) & is.null(.combine))
+            ans <- unlist(ans, recursive=FALSE)
     }
 
     # output
@@ -870,6 +1021,7 @@ seqTranspose <- function(gdsfile, var.name, compress=NULL, verbose=TRUE)
 
     invisible()
 }
+
 
 
 
@@ -1668,8 +1820,10 @@ seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRU
     if (verbose)
     {
         cat("Output: ", vcf.fn, "\n", sep="")
-        cat("The INFO field: ", paste(z$info$var.name, collapse=","), "\n", sep="")
-        cat("The FORMAT field: ", paste(z$format$var.name, collapse=","), "\n", sep="")
+        cat("The INFO field: ", paste(z$info$var.name, collapse=", "),
+        	"\n", sep="")
+        cat("The FORMAT field: ", paste(z$format$var.name, collapse=", "),
+        	"\n", sep="")
     }
 
 

@@ -9,7 +9,7 @@ seqSetFilter(gdsfile, sample.id=NULL, variant.id=NULL, samp.sel=NULL,
 	variant.sel=NULL, verbose=TRUE)
 }
 \arguments{
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{sample.id}{IDs of selected samples}
 	\item{variant.id}{IDs of selected variants}
 	\item{samp.sel}{a logical vector indicating the selected samples}

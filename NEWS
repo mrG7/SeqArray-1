@@ -1,3 +1,9 @@
+Changes in 1.1.3:
+
+	* minor bug fix to avoid 'seqGetData' crashing when no value returned from a variable-length variable
+	* update documents
+
+
 Changes in 1.1.2:
 
 	* added methods 'qual', 'filt', 'asVCF'
@@ -10,6 +16,6 @@ Changes in 1.1.1:
 	* basic supports of 'GRanges' and 'DNAStringSetList'
 
 
-Changes in 0.99.1:
+Version 0.99.1:
 
 	* first submission

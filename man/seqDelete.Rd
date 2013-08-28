@@ -8,7 +8,7 @@
 seqDelete(gdsfile, info.varname=NULL, format.varname=NULL)
 }
 \arguments{
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{info.varname}{the variables in the INFO field, i.e.,
 		"annotation/info/VARIABLE_NAME"}
 	\item{format.varname}{the variables in the FORMAT field, i.e.,

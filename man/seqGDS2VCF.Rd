@@ -8,7 +8,7 @@
 seqGDS2VCF(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRUE)
 }
 \arguments{
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{vcf.fn}{the file name, output a file of VCF format}
 	\item{info.var}{a list of variable names in the INFO field, or NULL for using
 		all variables}

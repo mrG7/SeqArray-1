@@ -8,8 +8,7 @@
 seqSummary(gdsfile, varname=NULL, check=c("check", "full.check", "none"), verbose=TRUE)
 }
 \arguments{
-	\item{gdsfile}{a file name, or a \code{\link[gdsfmt]{gds.class}} object in
-		the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{varname}{if \code{NULL}, check the whole GDS file; or a character specifying
 		variable name, and return a description of that variable. See details.}
 	\item{check}{should be one of "check", "full.check", "none"}

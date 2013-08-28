@@ -12,18 +12,19 @@ seqApply(gdsfile, var.name, FUN,
 	var.index = c("none", "relative", "absolute"), ...)
 }
 \arguments{
-	\item{gdsfile}{a \code{\link[gdsfmt]{gds.class}} object in the \link{gdsfmt} package}
+	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{var.name}{the variable name(s), see details}
 	\item{FUN}{the function to be applied}
 	\item{margin}{giving the dimension which the function will be applied
 		over. E.g., for a matrix 1 indicates rows, 2 indicates columns}
 	\item{as.is}{returned value: a list, an integer vector, etc}
-	\item{var.index}{if \code{"none"}, call \code{FUN(x, ...)} with variable
+	\item{var.index}{if \code{"none"}, call \code{FUN(x, ...)} without variable
 		index; if \code{"relative"} or \code{"absolute"}, add an argument to
 		the user-defined function \code{FUN} like \code{FUN(index, x, ...)}
 		where \code{index} is an index of variant starting from 1 if
 		\code{margin = "by.variant"}: \code{"relative"} for indexing in the
-		selection, \code{"absolute"} for indexing all data}
+		selection defined by \code{\link{seqSetFilter}}, \code{"absolute"}
+		for indexing with respect to all data}
 	\item{...}{optional arguments to \code{FUN}}
 }
 \details{
@@ -41,8 +42,7 @@ high-speed memory instead of disk.
 
 \author{Xiuwen Zheng}
 \seealso{
-	\code{\link{seqSetFilter}},
-	\code{\link{seqGetData}},
+	\code{\link{seqSetFilter}}, \code{\link{seqGetData}},
 	\code{\link{seqParallel}}
 }
 
