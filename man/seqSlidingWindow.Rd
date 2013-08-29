@@ -6,7 +6,7 @@
 sliding window over variants
 }
 \usage{
-seqSlidingWindow(gdsfile, var.name, win.size, FUN,
+seqSlidingWindow(gdsfile, var.name, win.size, shift=1, FUN,
     as.is = c("list", "integer", "double", "character", "none"),
     var.index = c("none", "relative", "absolute"), ...)
 }
@@ -14,6 +14,7 @@ seqSlidingWindow(gdsfile, var.name, win.size, FUN,
 	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
 	\item{var.name}{the variable name(s), see details}
 	\item{win.size}{the size of sliding window}
+	\item{shift}{the number of variants to shift the window at each step}
 	\item{FUN}{the function to be applied}
 	\item{as.is}{returned value: a list, an integer vector, etc}
 	\item{var.index}{if \code{"none"}, call \code{FUN(x, ...)} without variable

@@ -37,6 +37,13 @@
 #include <Rdefines.h>
 #include <stdio.h>
 
+// R_XLEN_T_MAX is defined, R >= v3.0
+#ifndef R_XLEN_T_MAX
+#  define R_xlen_t	R_len_t
+#  define XLENGTH	Rf_length
+#endif
+
+
 using namespace std;
 using namespace CoreArray;
 using namespace GDSInterface;
@@ -2343,8 +2350,9 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 // ###########################################################
 
 /// Apply functions via a sliding window over variants
-DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
-	SEXP FUN, SEXP as_is, SEXP var_index, SEXP rho)
+DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name,
+	SEXP win_size, SEXP shift_size, SEXP FUN, SEXP as_is, SEXP var_index,
+	SEXP rho)
 {
 	SEXP rv_ans = R_NilValue;
 	CORETRY_CALL
@@ -2388,6 +2396,10 @@ DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
 		if ((wsize > nVariant) || (wsize <= 0))
 			throw ErrSeqArray("`win.size' is out of range (1..%d).", nVariant);
 
+		// shift
+		int shift = INTEGER(shift_size)[0];
+		if (shift <= 0)
+			throw ErrSeqArray("`shift' should be greater than 0.");
 
 		// ***************************************************************
 		// initialize the GDS Node list
@@ -2457,24 +2469,26 @@ DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
 		else
 			throw ErrSeqArray("'as.is' is not valid!");
 
-		// init return values
-		// int DatType;  //< 0: integer, 1: double, 2: character, 3: list, other: NULL
+		// initialize the return value
+		R_xlen_t new_len = (nVariant - wsize + 1);
+		new_len = (new_len / shift) + ((new_len % shift) ? 1 : 0);
+
 		switch (DatType)
 		{
 		case 0:
-			PROTECT(rv_ans = NEW_INTEGER(nVariant - wsize + 1));
+			PROTECT(rv_ans = NEW_INTEGER(new_len));
 			nProtected ++;
 			break;
 		case 1:
-			PROTECT(rv_ans = NEW_NUMERIC(nVariant - wsize + 1));
+			PROTECT(rv_ans = NEW_NUMERIC(new_len));
 			nProtected ++;
 			break;
 		case 2:
-			PROTECT(rv_ans = NEW_CHARACTER(nVariant - wsize + 1));
+			PROTECT(rv_ans = NEW_CHARACTER(new_len));
 			nProtected ++;
 			break;
 		case 3:
-			PROTECT(rv_ans = NEW_LIST(nVariant - wsize + 1));
+			PROTECT(rv_ans = NEW_LIST(new_len));
 			nProtected ++;
 			break;
 		default:
@@ -2544,8 +2558,10 @@ DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
 			}
 		}
 
-		int ans_index = 0;
 		bool ifend = false;
+		int ans_index, variant_index, shift_step;
+		ans_index = variant_index = shift_step = 0;
+
 		do {
 			// push
 			for (int i=1; i < wsize; i++)
@@ -2575,45 +2591,53 @@ DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name, SEXP win_size,
 				SET_ELEMENT(R_call_param, wsize-1, duplicate(tmp));
 			}
 
-			switch (VarIdx)
-			{
-				case 2:
-					INTEGER(R_Index)[0] = ans_index + 1;
-					break;
-				case 3:
-					INTEGER(R_Index)[0] = NodeList.begin()->_Index - wsize + 2;
-					break;
-			}
+			variant_index ++;
 
-			// call R function
-			SEXP val = eval(R_fcall, rho);
-			switch (DatType)
+
+			if (shift_step <= 0)
 			{
-			case 0:    // integer
-				val = AS_INTEGER(val);
-				INTEGER(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
-					INTEGER(val)[0] : NA_INTEGER;
-				break;
-			case 1:    // double
-				val = AS_NUMERIC(val);
-				REAL(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
-					REAL(val)[0] : R_NaN;
-				break;
-			case 2:    // character
-				val = AS_CHARACTER(val);
-				SET_STRING_ELT(rv_ans, ans_index,
-					(LENGTH(val) > 0) ? STRING_ELT(val, 0) : NA_STRING);
-				break;
-			case 3:    // others
-				if (NAMED(val) > 0)
+				switch (VarIdx)
 				{
-					// the object is bound to other symbol(s), need a copy
-					val = duplicate(val);
+					case 2:
+						INTEGER(R_Index)[0] = variant_index;
+						break;
+					case 3:
+						INTEGER(R_Index)[0] = NodeList.begin()->_Index - wsize + 2;
+						break;
 				}
-				SET_ELEMENT(rv_ans, ans_index, val);
-				break;
+
+				// call R function
+				SEXP val = eval(R_fcall, rho);
+				switch (DatType)
+				{
+				case 0:    // integer
+					val = AS_INTEGER(val);
+					INTEGER(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+						INTEGER(val)[0] : NA_INTEGER;
+					break;
+				case 1:    // double
+					val = AS_NUMERIC(val);
+					REAL(rv_ans)[ans_index] = (LENGTH(val) > 0) ?
+						REAL(val)[0] : R_NaN;
+					break;
+				case 2:    // character
+					val = AS_CHARACTER(val);
+					SET_STRING_ELT(rv_ans, ans_index,
+						(LENGTH(val) > 0) ? STRING_ELT(val, 0) : NA_STRING);
+					break;
+				case 3:    // others
+					if (NAMED(val) > 0)
+					{
+						// the object is bound to other symbol(s), need a copy
+						val = duplicate(val);
+					}
+					SET_ELEMENT(rv_ans, ans_index, val);
+					break;
+				}
+				ans_index ++;
+				shift_step = shift;
 			}
-			ans_index ++;
+			shift_step --;
 
 			// check the end
 			for (it=NodeList.begin(); it != NodeList.end(); it ++)

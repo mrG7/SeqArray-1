@@ -307,7 +307,7 @@ seqApply <- function(gdsfile, var.name, FUN,
 # Apply functions via a sliding window over variants
 #
 
-seqSlidingWindow <- function(gdsfile, var.name, win.size, FUN,
+seqSlidingWindow <- function(gdsfile, var.name, win.size, shift=1, FUN,
     as.is = c("list", "integer", "double", "character", "none"),
     var.index = c("none", "relative", "absolute"), ...)
 {
@@ -318,8 +318,14 @@ seqSlidingWindow <- function(gdsfile, var.name, win.size, FUN,
     stopifnot(is.numeric(win.size) & (length(win.size)==1))
     win.size <- as.integer(win.size)
     stopifnot(is.finite(win.size))
-    if (win.size <= 0)
+    if (win.size < 1)
         stop("`win.size' should be greater than 0.")
+
+    stopifnot(is.numeric(shift) & (length(shift)==1))
+    shift <- as.integer(shift)
+    stopifnot(is.finite(shift))
+    if (shift < 1)
+        stop("`shift' should be greater than 0.")
 
     as.is <- match.arg(as.is)
     var.index <- match.arg(var.index)
@@ -328,8 +334,8 @@ seqSlidingWindow <- function(gdsfile, var.name, win.size, FUN,
     FUN <- match.fun(FUN)
 
     # C call
-    rv <- .Call("seq_SlidingWindow", gdsfile, var.name, win.size, FUN, as.is,
-        var.index, new.env(), PACKAGE="SeqArray")
+    rv <- .Call("seq_SlidingWindow", gdsfile, var.name, win.size, shift,
+    	FUN, as.is, var.index, new.env(), PACKAGE="SeqArray")
 
     if (as.is == "none") return(invisible())
     rv
