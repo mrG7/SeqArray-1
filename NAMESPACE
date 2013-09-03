@@ -18,6 +18,8 @@ importMethodsFrom(VariantAnnotation, ref, alt, qual, filt, asVCF)
 exportPattern("^seq*")
 export(.onAttach, .Last.lib)
 
-exportClasses(SeqVarGDSClass)
+exportClasses(SeqVarGDSClass, SeqVarNodeNewInfoClass)
+
 
 exportMethods(granges, ref, alt, qual, filt, asVCF)
+exportMethods(seqClose, seqAppend)

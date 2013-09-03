@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
+#include <list>
 #include <map>
 #include <set>
 #include <algorithm>
@@ -215,7 +216,7 @@ string GDS_UP_PATH(const char *path)
 	return string(path, p);
 }
 
-
+/// convert _SEXP to SEXP
 COREARRAY_INLINE static SEXP _(_SEXP_ v)
 {
 	union {
@@ -226,6 +227,21 @@ COREARRAY_INLINE static SEXP _(_SEXP_ v)
 	return u.t;
 }
 
+/// get the list element named str, or return NULL
+static SEXP getListElement(SEXP list, const char *str)
+{
+	SEXP elmt = R_NilValue;
+	SEXP names = getAttrib(list, R_NamesSymbol);
+	for (R_len_t i = 0; i < length(list); i++)
+	{
+		if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0)
+		{
+			elmt = VECTOR_ELT(list, i);
+			break;
+		}
+	}
+	return elmt;
+}
 
 
 
@@ -243,7 +259,18 @@ public:
 		vector<CBOOL> Variant;
 	};
 
+	typedef list<TSelection> TSelList;
+
 	TInitObject(): TRUE_ARRAY(256, TRUE), GENO_BUFFER(1024) {}
+
+	COREARRAY_INLINE TSelection &Selection(SEXP gds)
+	{
+		// TODO: check whether handle is valid
+		int id = INTEGER(getListElement(gds, "id"))[0];
+		TSelList &m = _Map[id];
+		if (m.empty()) m.push_back(TSelection());
+		return m.back();
+	}
 
 	COREARRAY_INLINE void Check_TrueArray(int Cnt)
 	{
@@ -251,9 +278,9 @@ public:
 			TRUE_ARRAY.resize(Cnt, TRUE);
 	}
 
-	map<int, TSelection> Map;
 	vector<CBOOL> TRUE_ARRAY;
 	vector<UInt8> GENO_BUFFER;
+	map<int, TSelList> _Map;
 } Init;
 
 
@@ -649,22 +676,6 @@ struct TVCF_Field_Format
 };
 
 
-
-/// get the list element named str, or return NULL
-static SEXP getListElement(SEXP list, const char *str)
-{
-	SEXP elmt = R_NilValue;
-	SEXP names = getAttrib(list, R_NamesSymbol);
-	for (R_len_t i = 0; i < length(list); i++)
-	{
-		if (strcmp(CHAR(STRING_ELT(names, i)), str) == 0)
-		{
-			elmt = VECTOR_ELT(list, i);
-			break;
-		}
-	}
-	return elmt;
-}
 
 /// 
 static void _MappingIndex(PdSequenceX Node, const vector<CBOOL> &sel,
@@ -1216,13 +1227,26 @@ DLLEXPORT void seq_Done()
 // Open a GDS file
 // ###########################################################
 
-/// get an error message
-DLLEXPORT SEXP seq_Open_Init(SEXP gds_file_id)
+/// initialize a SeqArray file
+DLLEXPORT SEXP seq_Open_Init(SEXP gdsfile)
 {
 	CORETRY_CALL
-		TInitObject::TSelection &s = Init.Map[INTEGER(gds_file_id)[0]];
+		TInitObject::TSelection &s = Init.Selection(gdsfile);
 		s.Sample.clear();
 		s.Variant.clear();
+	CORECATCH_CALL
+	return R_NilValue;
+}
+
+/// finalize a SeqArray file
+DLLEXPORT SEXP seq_File_Done(SEXP gdsfile)
+{
+	CORETRY_CALL
+		int gds_file_id = INTEGER(getListElement(gdsfile, "id"))[0];
+		map<int, TInitObject::TSelList>::iterator it =
+			Init._Map.find(gds_file_id);
+		if (it != Init._Map.end())
+			Init._Map.erase(it);
 	CORECATCH_CALL
 	return R_NilValue;
 }
@@ -1233,12 +1257,46 @@ DLLEXPORT SEXP seq_Open_Init(SEXP gds_file_id)
 // Set a working space
 // ###########################################################
 
+/// push the current filter to the stack
+DLLEXPORT SEXP seq_FilterPush(SEXP gdsfile)
+{
+	CORETRY_CALL
+		int id = INTEGER(getListElement(gdsfile, "id"))[0];
+		map<int, TInitObject::TSelList>::iterator it =
+			Init._Map.find(id);
+		if (it != Init._Map.end())
+		{
+			it->second.push_back(TInitObject::TSelection());
+		} else
+			throw ErrSeqArray("The GDS file is closed or invalid.");
+	CORECATCH_CALL
+	return R_NilValue;
+}
+
+/// pop up the previous filter from the stack
+DLLEXPORT SEXP seq_FilterPop(SEXP gdsfile)
+{
+	CORETRY_CALL
+		int id = INTEGER(getListElement(gdsfile, "id"))[0];
+		map<int, TInitObject::TSelList>::iterator it =
+			Init._Map.find(id);
+		if (it != Init._Map.end())
+		{
+			if (it->second.size() <= 1)
+				throw ErrSeqArray("No filter can be pop up.");
+			it->second.pop_back();
+		} else
+			throw ErrSeqArray("The GDS file is closed or invalid.");
+	CORECATCH_CALL
+	return R_NilValue;
+}
+
 /// set a working space with selected sample id
 DLLEXPORT SEXP seq_SetSpaceSample(SEXP gds, SEXP samp_sel, SEXP verbose)
 {
 	CORETRY_CALL
 
-		TInitObject::TSelection &s = Init.Map[*INTEGER(getListElement(gds, "id"))];
+		TInitObject::TSelection &s = Init.Selection(gds);
 
 		// the GDS root node
 		PdGDSObj Root = GDS_OBJECT(getListElement(gds, "root"));
@@ -1343,7 +1401,7 @@ DLLEXPORT SEXP seq_SetSpaceVariant(SEXP gds, SEXP var_sel, SEXP verbose)
 {
 	CORETRY_CALL
 
-		TInitObject::TSelection &s = Init.Map[*INTEGER(getListElement(gds, "id"))];
+		TInitObject::TSelection &s = Init.Selection(gds);
 
 		// the GDS root node
 		PdGDSObj Root = GDS_OBJECT(getListElement(gds, "root"));
@@ -1464,7 +1522,7 @@ static void SKIP_SEL(int num, vector<CBOOL>::iterator &it)
 DLLEXPORT SEXP seq_SplitSelectedVariant(SEXP gdsfile, SEXP Index, SEXP n_process)
 {
 	// selection object
-	TInitObject::TSelection &s = Init.Map[*INTEGER(getListElement(gdsfile, "id"))];
+	TInitObject::TSelection &s = Init.Selection(gdsfile);
 
 	// the index process starting from 1
 	int Process_Index = INTEGER(AS_INTEGER(Index))[0] - 1;
@@ -1519,7 +1577,7 @@ DLLEXPORT SEXP seq_SplitSelectedVariant(SEXP gdsfile, SEXP Index, SEXP n_process
 DLLEXPORT SEXP seq_SplitSelectedSample(SEXP gdsfile, SEXP Index, SEXP n_process)
 {
 	// selection object
-	TInitObject::TSelection &s = Init.Map[*INTEGER(getListElement(gdsfile, "id"))];
+	TInitObject::TSelection &s = Init.Selection(gdsfile);
 
 	// the index process starting from 1
 	int Process_Index = INTEGER(AS_INTEGER(Index))[0] - 1;
@@ -1571,15 +1629,15 @@ DLLEXPORT SEXP seq_SplitSelectedSample(SEXP gdsfile, SEXP Index, SEXP n_process)
 
 
 /// set a working space with selected variant id
-DLLEXPORT SEXP seq_GetSpace(SEXP gds)
+DLLEXPORT SEXP seq_GetSpace(SEXP gdsfile)
 {
 	SEXP rv_ans = R_NilValue;
 	CORETRY_CALL
 
-		TInitObject::TSelection &s = Init.Map[*INTEGER(getListElement(gds, "id"))];
+		TInitObject::TSelection &s = Init.Selection(gdsfile);
 
 		// the GDS root node
-		PdGDSObj Root = GDS_OBJECT(getListElement(gds, "root"));
+		PdGDSObj Root = GDS_OBJECT(getListElement(gdsfile, "root"));
 		PdSequenceX varSample = CHECK(gds_NodePath(Root, "sample.id"));
 		PdSequenceX varVariant = CHECK(gds_NodePath(Root, "variant.id"));
 
@@ -1617,6 +1675,12 @@ DLLEXPORT SEXP seq_GetSpace(SEXP gds)
 		}
 		SET_ELEMENT(rv_ans, 1, tmp);
 
+		PROTECT(tmp = NEW_CHARACTER(2));
+		nProtected ++;
+			SET_STRING_ELT(tmp, 0, mkChar("sample.sel"));
+			SET_STRING_ELT(tmp, 1, mkChar("variant.sel"));
+		SET_NAMES(rv_ans, tmp);
+
 		UNPROTECT(nProtected);
 
 	CORECATCH_CALL
@@ -1627,17 +1691,16 @@ DLLEXPORT SEXP seq_GetSpace(SEXP gds)
 
 
 /// set a working space with selected variant id
-DLLEXPORT SEXP seq_VarSummary(SEXP gds_file, SEXP varname)
+DLLEXPORT SEXP seq_VarSummary(SEXP gdsfile, SEXP varname)
 {
 	SEXP rv_ans = R_NilValue;
 
 	CORETRY_CALL
 
 		// the selection
-		TInitObject::TSelection &Sel =
-			Init.Map[*INTEGER(getListElement(gds_file, "id"))];
+		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_OBJECT(getListElement(gds_file, "root"));
+		PdGDSObj Root = GDS_OBJECT(getListElement(gdsfile, "root"));
 		// the variable name
 		string vn = CHAR(STRING_ELT(varname, 0));
 
@@ -1771,16 +1834,15 @@ static SEXP VarLogical(PdGDSObj Node, SEXP Array)
 }
 
 /// Get data from a working space
-DLLEXPORT SEXP seq_GetData(SEXP gds_file, SEXP var_name)
+DLLEXPORT SEXP seq_GetData(SEXP gdsfile, SEXP var_name)
 {
 	SEXP rv_ans = R_NilValue, tmp;
 	CORETRY_CALL
 
 		// the selection
-		TInitObject::TSelection &Sel =
-			Init.Map[*INTEGER(getListElement(gds_file, "id"))];
+		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_OBJECT(getListElement(gds_file, "root"));
+		PdGDSObj Root = GDS_OBJECT(getListElement(gdsfile, "root"));
 
 		// 
 		CBOOL *SelPtr[256];
@@ -2086,17 +2148,16 @@ DLLEXPORT SEXP seq_GetData(SEXP gds_file, SEXP var_name)
 // ###########################################################
 
 /// Apply functions over margins on a working space
-DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
+DLLEXPORT SEXP seq_Apply_Variant(SEXP gdsfile, SEXP var_name,
 	SEXP FUN, SEXP as_is, SEXP var_index, SEXP rho)
 {
 	SEXP rv_ans = R_NilValue;
 	CORETRY_CALL
 
 		// the selection
-		TInitObject::TSelection &Sel =
-			Init.Map[*INTEGER(getListElement(gds_file, "id"))];
+		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_OBJECT(getListElement(gds_file, "root"));
+		PdGDSObj Root = GDS_OBJECT(getListElement(gdsfile, "root"));
 
 		// init selection
 		if (Sel.Sample.empty())
@@ -2350,7 +2411,7 @@ DLLEXPORT SEXP seq_Apply_Variant(SEXP gds_file, SEXP var_name,
 // ###########################################################
 
 /// Apply functions via a sliding window over variants
-DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name,
+DLLEXPORT SEXP seq_SlidingWindow(SEXP gdsfile, SEXP var_name,
 	SEXP win_size, SEXP shift_size, SEXP FUN, SEXP as_is, SEXP var_index,
 	SEXP rho)
 {
@@ -2358,10 +2419,9 @@ DLLEXPORT SEXP seq_SlidingWindow(SEXP gds_file, SEXP var_name,
 	CORETRY_CALL
 
 		// the selection
-		TInitObject::TSelection &Sel =
-			Init.Map[*INTEGER(getListElement(gds_file, "id"))];
+		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_OBJECT(getListElement(gds_file, "root"));
+		PdGDSObj Root = GDS_OBJECT(getListElement(gdsfile, "root"));
 
 		// init selection
 		if (Sel.Sample.empty())
@@ -2901,17 +2961,17 @@ static const string TO_TEXT(SEXP X, int Start=0, int MaxCnt=-1,
 	string ans;
 
 	if (MaxCnt < 0)
-		MaxCnt = Rf_length(X) - Start;
+		MaxCnt = (Rf_length(X) - Start) / Step;
 
 	if (IS_INTEGER(X) || IS_LOGICAL(X))
 	{
 		int *Base = (IS_INTEGER(X) ? INTEGER(X) : LOGICAL(X)) + Start;
-		if (VarLength)
+		if (VarLength || !NoBlank)
 		{
 			for (; MaxCnt > 0; MaxCnt --)
-				if (!R_IsNA(Base[(MaxCnt-1)*Step])) break;
+				if (Base[(MaxCnt-1)*Step] != NA_INTEGER) break;
 		}
-		for (int i=0; i < MaxCnt; i ++, Base += Step)
+		for (int i=0; i < MaxCnt; i++, Base += Step)
 		{
 			if (i > 0) ans.push_back(',');
 			if (*Base != NA_INTEGER)
@@ -2924,12 +2984,12 @@ static const string TO_TEXT(SEXP X, int Start=0, int MaxCnt=-1,
 	} else if (IS_NUMERIC(X))
 	{
 		double *Base = REAL(X) + Start;
-		if (VarLength)
+		if (VarLength || !NoBlank)
 		{
 			for (; MaxCnt > 0; MaxCnt --)
 				if (R_finite(Base[(MaxCnt-1)*Step])) break;
 		}
-		for (int i=0; i < MaxCnt; i ++, Base += Step)
+		for (int i=0; i < MaxCnt; i++, Base += Step)
 		{
 			if (i > 0) ans.push_back(',');
 			if (R_finite(*Base))
@@ -2943,7 +3003,7 @@ static const string TO_TEXT(SEXP X, int Start=0, int MaxCnt=-1,
 	{
 		if (Rf_isFactor(X))
 			X = Rf_asCharacterFactor(X);
-		if (VarLength)
+		if (VarLength || !NoBlank)
 		{
 			for (; MaxCnt > 0; MaxCnt --)
 			{
@@ -2962,7 +3022,9 @@ static const string TO_TEXT(SEXP X, int Start=0, int MaxCnt=-1,
 	}
 
 	if (NoBlank)
+	{
 		if (ans.empty()) ans = ".";
+	}
 
 	return ans;
 }
@@ -3057,12 +3119,13 @@ DLLEXPORT SEXP seq_OutVCF4(SEXP X)
 			}
 		} else {
 			int L = _VCF4_INFO_Number[i];
-			tmp = (L < 0) ? TO_TEXT(D, 0, -1, true, false) : TO_TEXT(D, 0, L, false, false);
+			tmp = TO_TEXT(D, 0, (L < 0) ? -1 : L, (L < 0), false);
 			if (!tmp.empty())
 			{
 				if (NeedSeparator) txt.push_back(';');
 				NeedSeparator = true;
-				txt.append(nm); txt.push_back('=');
+				txt.append(nm);
+				txt.push_back('=');
 				txt.append(tmp);
 				n ++;
 			}
