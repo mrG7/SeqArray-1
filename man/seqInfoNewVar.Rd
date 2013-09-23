@@ -6,7 +6,7 @@
 }
 \usage{
 seqInfoNewVar(gdsfile, var.name, variant.id, val,
-    description="", compress=c("ZIP.MAX", ""), simplify=TRUE)
+    description="", compress=c("ZIP.MAX", ""), no.data.index=TRUE)
 }
 \arguments{
 	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
@@ -20,10 +20,11 @@ seqInfoNewVar(gdsfile, var.name, variant.id, val,
 	\item{compress}{to specify the compression algorithm: \code{""}
 		for no compression; see \code{compress} in the function
 		\code{\link[gdsfmt]{add.gdsn}}}
-	\item{simplify}{applicable only if \code{val} is a numeric vector or a
-		factor variable; if \code{simplify=TRUE}, non-exist values in
-		\code{val} will be filled with \code{NA} or \code{NaN} with respect
-		to the variants not specified in \code{variant.id}}
+	\item{no.data.index}{applicable only if \code{val} is a numeric vector
+		or a factor variable; if \code{no.data.index=TRUE}, non-exist values
+		in \code{val} will be replaced by \code{NA} or \code{NaN} with respect
+		to the variants not specified in \code{variant.id}, and no index
+		data associated with this variable are created}
 }
 \details{
 	The variable name should be \code{"sample.id"}, \code{"variant.id"},
@@ -67,7 +68,7 @@ seqInfoNewVar(f, "int", variant.id[1:15], sample.int(256, 15, TRUE),
 seqGetData(f, "annotation/info/int")
 
 seqInfoNewVar(f, "int.2", variant.id[1:15], sample.int(256, 15, TRUE),
-	"integer variable", simplify=FALSE)
+	"integer variable", no.data.index=FALSE)
 seqGetData(f, "annotation/info/int.2")
 
 
@@ -76,7 +77,7 @@ seqInfoNewVar(f, "numeric", variant.id[15:30], rnorm(16),
 seqGetData(f, "annotation/info/numeric")
 
 seqInfoNewVar(f, "numeric.2", variant.id[15:30], rnorm(16),
-	"numeric variable", simplify=FALSE)
+	"numeric variable", no.data.index=FALSE)
 seqGetData(f, "annotation/info/numeric.2")
 
 

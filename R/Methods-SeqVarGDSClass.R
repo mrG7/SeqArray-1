@@ -73,7 +73,7 @@ setMethod("asVCF",
             seqsum <- seqSummary(x, check="none", verbose=FALSE)
             if (!is.null(info)) {
               validInfo <- seqsum$info$var.name
-              infoDiff <- setdiff(info, validInfo)
+              infoDiff <- setdiff(info, c(validInfo, NA))
               if (length(infoDiff) > 0) {
                 warning(paste("info fields not present:", infoDiff))
                 info <- intersect(info, validInfo)
@@ -81,7 +81,7 @@ setMethod("asVCF",
             }
             if (!is.null(geno)) {
               validGeno <- c("GT", seqsum$format$var.name)
-              genoDiff <- setdiff(geno, validGeno)
+              genoDiff <- setdiff(geno, c(validGeno, NA))
               if (length(genoDiff) > 0) {
                 warning(paste("geno fields not present:", genoDiff))
                 geno <- intersect(geno, validGeno)

@@ -4,10 +4,11 @@
 \alias{SeqVarGDSClass-class}
 \alias{SeqVarGDSClass}
 \alias{granges,SeqVarGDSClass-method}
-\alias{ref}
 \alias{ref,SeqVarGDSClass-method}
-\alias{alt}
 \alias{alt,SeqVarGDSClass-method}
+\alias{filt,SeqVarGDSClass-method}
+\alias{qual,SeqVarGDSClass-method}
+\alias{asVCF,SeqVarGDSClass-method}
 
 \title{SeqVarGDSClass}
 
@@ -17,9 +18,9 @@ Variant Call Format (VCF) data. It extends \code{\link[gdsfmt]{gds.class}}.
 }
 
 \details{
-	A sequencing GDS file is created from a VCF file with \code{\link{seqVCF2GDS}}.
-This file can be opened with \code{\link{seqOpen}} to create a
-\code{SeqVarGDSClass} object.
+	A sequencing GDS file is created from a VCF file with
+\code{\link{seqVCF2GDS}}. This file can be opened with \code{\link{seqOpen}}
+to create a \code{SeqVarGDSClass} object.
 }
 
 \section{Accessors}{
@@ -38,18 +39,45 @@ This file can be opened with \code{\link{seqOpen}} to create a
 			\code{alt(x)}:
 			Returns the alternate alleles as a \code{\link{DNAStringSetList}}.
 		}
+		\item{}{
+			\code{filt(x)}:
+			Returns the filter data.
+		}
+		\item{}{
+			\code{qual(x)}:
+			Returns the quality scores.
+		}
 	}
 
 	Other data can be accessed with \code{\link{seqGetData}}.
 }
 
+\section{Coercion methods}{
+	In the following code snippets \code{x} is a SeqVarGDSClass object.
+	\describe{
+		\item{}{
+			\code{asVCF(x, info=NULL, geno=NULL)}:
+			Coerces a SeqVarGDSClass object to a
+			\link{VCF-class} object.  Row names correspond
+	to the variant.id.  \code{info}
+			and \code{geno} specify the 'INFO' and
+	'GENO' (FORMAT) fields to return, respectively.  If not
+	specified, all fields are returned; if 'NA' no fields are
+	returned.  Use \code{\link{seqSetFilter}} prior to calling
+	\code{asVCF} to specify samples and variants to return.
+		}
+	}
+}
+
+
 \author{Xiuwen Zheng, Stephanie Gogarten}
 
 \seealso{
-  \code{\link{gds.class}},
+  \code{\link[gdsfmt]{gds.class}},
   \code{\link{seqVCF2GDS}},
   \code{\link{seqOpen}},
   \code{\link{seqGetData}},
+  \code{\link{seqSetFilter}},
   \code{\link{seqClose}}
 }
 
@@ -93,4 +121,3 @@ depth$data[1:10,1:5]
 
 seqClose(gds)
 }
-

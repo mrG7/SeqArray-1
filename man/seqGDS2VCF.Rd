@@ -107,5 +107,6 @@ seqClose(f)
 }
 
 \keyword{gds}
+\keyword{VCF}
 \keyword{sequencing}
 \keyword{genetics}

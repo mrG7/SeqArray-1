@@ -1,3 +1,12 @@
+Changes in 1.1.5:
+
+	* minor bug fix in asVCF
+	* update man page "SeqVarGDSClass-class.Rd" with new methods
+	* in DESCRIPTION, BiocGenerics listed in "Suggests" instead of "Imports" as suggested by R CMD check
+	* bug fix in seqDelete
+	* revise the function 'seqTranspose' according to the update of gdsfmt (v1.0.0)
+
+
 Changes in 1.1.4:
 
 	* add a new argument "action" to the function 'seqSetFilter'

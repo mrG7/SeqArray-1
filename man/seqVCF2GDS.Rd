@@ -2,12 +2,12 @@
 \alias{seqVCF2GDS}
 \title{Reformat VCF files}
 \description{
-	Reformat Variant Call Format (VCF) files
+	Reformat Variant Call Format (VCF) files.
 }
 \usage{
-seqVCF2GDS(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
-	compress.option = seqCompress.Option(),
-	cvt.raise.err = TRUE, verbose = TRUE)
+seqVCF2GDS(vcf.fn, out.fn, header=NULL, genotype.var.name="GT",
+	compress.option=seqCompress.Option(),
+	info.import=NULL, fmt.import=NULL, raise.error=TRUE, verbose=TRUE)
 }
 \arguments{
 	\item{vcf.fn}{the file name(s) of VCF format}
@@ -17,7 +17,11 @@ seqVCF2GDS(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
 		"GT" by default, VCFv4.0}
 	\item{compress.option}{specify the compression options, by default
 		\code{\link{seqCompress.Option}}}
-	\item{cvt.raise.err}{\code{TRUE}: throw an error if numeric conversion fails;
+	\item{info.import}{characters, the variable name(s) in the INFO field
+		for import}
+	\item{fmt.import}{characters, the variable name(s) in the FORMAT field
+		for import}
+	\item{raise.error}{\code{TRUE}: throw an error if numeric conversion fails;
 		\code{FALSE}: get missing value if numeric conversion fails}
 	\item{verbose}{if TRUE, show information}
 }
@@ -52,7 +56,7 @@ combine genetic data if VCF data are divided by chromosomes.
 }
 
 \examples{
-# the file of VCF
+# the file name of VCF
 vcf.fn <- seqExampleFileName("vcf")
 # or vcf.fn <- "C:/YourFolder/Your_VCF_File.vcf"
 
@@ -61,11 +65,29 @@ seqVCF2GDS(vcf.fn, "tmp.gds")
 
 # display
 (f <- seqOpen("tmp.gds"))
+seqClose(f)
 
-# close the GDS file
+
+
+# convert without the INFO fields
+seqVCF2GDS(vcf.fn, "tmp.gds", info.import=character(0))
+
+# display
+(f <- seqOpen("tmp.gds"))
+seqClose(f)
+
+
+
+# convert without the INFO fields
+seqVCF2GDS(vcf.fn, "tmp.gds",
+	info.import=character(0), fmt.import=character(0))
+
+# display
+(f <- seqOpen("tmp.gds"))
 seqClose(f)
 }
 
 \keyword{gds}
+\keyword{VCF}
 \keyword{sequencing}
 \keyword{genetics}

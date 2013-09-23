@@ -5,12 +5,14 @@
 	Get the summary of a sequencing GDS file
 }
 \usage{
-seqSummary(gdsfile, varname=NULL, check=c("check", "full.check", "none"), verbose=TRUE)
+seqSummary(gdsfile, varname=NULL, check=c("check", "full.check", "none"),
+	verbose=TRUE)
 }
 \arguments{
 	\item{gdsfile}{a \code{\link{SeqVarGDSClass}} object}
-	\item{varname}{if \code{NULL}, check the whole GDS file; or a character specifying
-		variable name, and return a description of that variable. See details.}
+	\item{varname}{if \code{NULL}, check the whole GDS file; or a character
+		specifying variable name, and return a description of that variable.
+		See details.}
 	\item{check}{should be one of "check", "full.check", "none"}
 	\item{verbose}{if \code{TRUE}, display information}
 }
@@ -20,10 +22,10 @@ seqSummary(gdsfile, varname=NULL, check=c("check", "full.check", "none"), verbos
 		\item{sequence.variant.format}{the sequencing format in GDS}
 		\item{num.of.sample}{the number of samples}
 		\item{num.of.variant}{the number of variants}
-		\item{info}{the description of the INFO field: \code{var.name}, \code{number},
-			\code{type} and \code{description}}
-		\item{format}{the description of the FORMAT field: \code{var.name}, \code{number},
-			\code{type} and \code{description}}
+		\item{info}{the description of the INFO field: \code{var.name},
+			\code{number}, \code{type} and \code{description}}
+		\item{format}{the description of the FORMAT field: \code{var.name},
+			\code{number}, \code{type} and \code{description}}
 
 	If \code{varname = "genotype" or "phase"}, then return a list:
 		\item{dim}{dim[1] -- ploidy, dim[2] -- the number of samples,
@@ -32,9 +34,10 @@ seqSummary(gdsfile, varname=NULL, check=c("check", "full.check", "none"), verbos
 			seldim[2] -- the number of selected variants}
 }
 \details{
-	If \code{check = "check"}, this function performs regular checking: dimensions
-of variables, etc. If \code{check = "full.check"}, it performs more checking: unique
-sample id, unique variant id, whether genotypic data are in a valid range or not, etc.
+	If \code{check = "check"}, this function performs regular checking:
+dimensions of variables, etc. If \code{check = "full.check"}, it performs
+more checking: unique sample id, unique variant id, whether genotypic data
+are in a valid range or not, etc.
 }
 
 \author{Xiuwen Zheng}

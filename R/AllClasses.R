@@ -1,4 +1,4 @@
-# register old-style (S3) classes from the gdsfmt package
+# register old-style (S3) classes and inheritance
 setOldClass("gds.class")
 setOldClass("gdsn.class")
 

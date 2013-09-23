@@ -365,7 +365,7 @@ seqCompress.Option <- function(default="ZIP.MAX", ...)
     if (!("annotation" %in% n))
         rv$annotation <- default
 
-    class(rv) <- "seqCompress.class"
+    class(rv) <- "SeqGDSCompressFlagClass"
     return(rv)
 }
 
@@ -631,7 +631,7 @@ seqVCF.Header <- function(vcf.fn)
     rv <- list(fileformat=fileformat, info=INFO, filter=FILTER, format=FORMAT,
         alt=ALT, contig=contig, assembly=assembly, header=ans,
         num.ploidy = num.ploidy)
-    class(rv) <- "seqvcf.header.class"
+    class(rv) <- "SeqVCFHeaderClass"
     rv
 }
 
@@ -673,17 +673,34 @@ seqVCF.SampID <- function(vcf.fn)
 # Convert a VCF (sequence) file to a GDS file
 #
 
-seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
-    compress.option = seqCompress.Option(),
-    cvt.raise.err = TRUE, verbose = TRUE)
+seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
+    genotype.var.name = "GT", compress.option = seqCompress.Option(),
+    info.import=NULL, fmt.import=NULL, raise.error = TRUE, verbose = TRUE)
 {
     # check
-    stopifnot(is.character(vcf.fn) & (length(vcf.fn)>0))
-    stopifnot(is.character(out.fn) & (length(out.fn)==1))
-    stopifnot(is.null(header) | inherits(header, "seqvcf.header.class"))
-    stopifnot(is.character(genotype.var.name) & (length(genotype.var.name)==1))
-    stopifnot(is.logical(cvt.raise.err) & (length(cvt.raise.err)==1))
-    stopifnot(is.logical(verbose) & (length(verbose)==1))
+    stopifnot(is.character(vcf.fn) & is.vector(vcf.fn))
+    stopifnot(length(vcf.fn) > 0)
+
+    stopifnot(is.character(out.fn) & is.vector(out.fn))
+    stopifnot(length(out.fn) == 1)
+
+    stopifnot(is.null(header) | inherits(header, "SeqVCFHeaderClass"))
+    stopifnot(inherits(compress.option, "SeqGDSCompressFlagClass"))
+
+    stopifnot(is.character(genotype.var.name) & is.vector(genotype.var.name))
+    stopifnot(length(genotype.var.name) == 1)
+
+    stopifnot(is.null(info.import) |
+        (is.character(info.import) & is.vector(info.import)))
+    stopifnot(is.null(fmt.import) |
+        (is.character(fmt.import) & is.vector(fmt.import)))
+
+    stopifnot(is.logical(raise.error) & is.vector(raise.error))
+    stopifnot(length(raise.error) == 1)
+
+    stopifnot(is.logical(verbose) & is.vector(verbose))
+    stopifnot(length(verbose) == 1)
+
 
     # check sample id
     samp.id <- NULL
@@ -902,6 +919,10 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
         {
             int_type <- integer(nrow(header$info))
             int_num  <- suppressWarnings(as.integer(header$info$Number))
+            if (is.null(info.import))
+                import.flag <- rep(TRUE, length(int_num))
+            else
+                import.flag <- header$info$ID %in% info.import
 
             for (i in 1:nrow(header$info))
             {
@@ -950,22 +971,26 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
                 }
 
                 # add
-                node <- add.gdsn(varInfo, header$info$ID[i], storage=mode,
-                    valdim=initdim, compress=compress("annotation"))
-                put.attr.gdsn(node, "Number", header$info$Number[i])
-                put.attr.gdsn(node, "Type", header$info$Type[i])
-                put.attr.gdsn(node, "Description", header$info$Description[i])
-
-                if (s %in% c(".", "A", "G"))
+                if (import.flag[i])
                 {
-                    node <- add.gdsn(varInfo, paste("@", header$info$ID[i], sep=""),
-                        storage="int32", valdim=c(0), compress=compress("info"))
-                    put.attr.gdsn(node, "R.invisible")
-                }
+	                node <- add.gdsn(varInfo, header$info$ID[i], storage=mode,
+    	                valdim=initdim, compress=compress("annotation"))
+	                put.attr.gdsn(node, "Number", header$info$Number[i])
+    	            put.attr.gdsn(node, "Type", header$info$Type[i])
+	                put.attr.gdsn(node, "Description", header$info$Description[i])
+
+	                if (s %in% c(".", "A", "G"))
+    	            {
+        	            node <- add.gdsn(varInfo, paste("@", header$info$ID[i], sep=""),
+            	            storage="int32", valdim=c(0), compress=compress("info"))
+	                    put.attr.gdsn(node, "R.invisible")
+    	            }
+    	    	}
             }
 
             header$info$int_type <- as.integer(int_type)
             header$info$int_num  <- as.integer(int_num)
+            header$info$import.flag <- import.flag
         }
     }
 
@@ -973,11 +998,15 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
     ##################################################
     # VCF VARIANT
 
-    # add info
+    # add the format field
     varFormat <- add.gdsn(varAnnot, "format", storage="folder")
 
     int_type <- integer(nrow(header$format))
     int_num  <- suppressWarnings(as.integer(header$format$Number))
+    if (is.null(fmt.import))
+        import.flag <- rep(TRUE, length(int_num))
+    else
+        import.flag <- header$format$ID %in% fmt.import
 
     for (i in 1:nrow(header$format))
     {
@@ -1016,27 +1045,29 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
         }
 
         # add
-        node <- add.gdsn(varFormat, header$format$ID[i], storage="folder")
-        put.attr.gdsn(node, "Number", header$format$Number[i])
-        put.attr.gdsn(node, "Type", header$format$Type[i])
-        put.attr.gdsn(node, "Description", header$format$Description[i])
+        if (import.flag[i])
+        {
+	        node <- add.gdsn(varFormat, header$format$ID[i], storage="folder")
+    	    put.attr.gdsn(node, "Number", header$format$Number[i])
+	        put.attr.gdsn(node, "Type", header$format$Type[i])
+    	    put.attr.gdsn(node, "Description", header$format$Description[i])
 
-        add.gdsn(node, "data", storage=mode, valdim=initdim,
-            compress=compress("format"))
-        tmp <- add.gdsn(node, "@data", storage="int32", valdim=c(0),
-            compress=compress("format"))
-        put.attr.gdsn(tmp, "R.invisible")
+	        add.gdsn(node, "data", storage=mode, valdim=initdim,
+    	        compress=compress("format"))
+	        tmp <- add.gdsn(node, "@data", storage="int32", valdim=c(0),
+    	        compress=compress("format"))
+	        put.attr.gdsn(tmp, "R.invisible")
+	    }
     }
 
     header$format$int_type <- as.integer(int_type)
     header$format$int_num  <- as.integer(int_num)
-
+    header$format$import.flag <- import.flag
 
 
     ##################################################
     # sync file
     sync.gds(gfile)
-
 
 
     ##################################################
@@ -1063,7 +1094,7 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL, genotype.var.name = "GT",
         v <- .Call("seq_Parse_VCF4", vcf.fn[i], header, gfile$root,
             list(sample.num = as.integer(length(samp.id)),
                 genotype.var.name = genotype.var.name,
-                cvt.raise.err = cvt.raise.err, verbose = verbose),
+                raise.error = raise.error, verbose = verbose),
             readline, opfile, new.env())
         put.attr.gdsn(varFilter, "R.class", "factor")
         put.attr.gdsn(varFilter, "R.levels", v)

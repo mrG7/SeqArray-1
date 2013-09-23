@@ -45,6 +45,7 @@ seqVCF.Header(vcf.fn)
 }
 
 \examples{
+# the file name of VCF
 (vcf.fn <- seqExampleFileName("vcf"))
 # or vcf.fn <- "C:/YourFolder/Your_VCF_File.vcf"
 
@@ -53,5 +54,6 @@ seqVCF.Header(vcf.fn)
 }
 
 \keyword{gds}
+\keyword{VCF}
 \keyword{sequencing}
 \keyword{genetics}

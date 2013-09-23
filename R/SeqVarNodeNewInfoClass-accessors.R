@@ -8,11 +8,13 @@
 # Add a new variable to the INFO field
 #
 seqInfoNewVar <- function(gdsfile, var.name, variant.id, val,
-    description="", compress=c("ZIP.MAX", ""), simplify=TRUE)
+    description="", compress=c("ZIP.MAX", ""), no.data.index=TRUE)
 {
     # check
     stopifnot(inherits(gdsfile, "SeqVarGDSClass"))
-    stopifnot(is.character(var.name) & (length(var.name)==1))
+
+    stopifnot(is.character(var.name) & is.vector(var.name))
+    stopifnot(length(var.name) == 1)
 
     stopifnot(is.vector(variant.id))
     stopifnot(length(variant.id) > 0)
@@ -29,9 +31,13 @@ seqInfoNewVar <- function(gdsfile, var.name, variant.id, val,
     } else
         stop("`val' should be a vector or matrix.")
 
-    stopifnot(is.character(description))
+    stopifnot(is.character(description) & is.vector(description))
+    stopifnot(length(description) == 1)
+
     compress <- match.arg(compress)
-    stopifnot(is.logical(simplify))
+
+	stopifnot(is.logical(no.data.index) & is.vector(no.data.index))
+    stopifnot(length(no.data.index) == 1)
 
     # determine the storage mode -- type
     if (is.factor(val))
@@ -80,7 +86,7 @@ seqInfoNewVar <- function(gdsfile, var.name, variant.id, val,
     if (is.unsorted(map, strictly=TRUE))
         stop("`variant.id' should have the same order as the IDs in the specified GDS file.")
 
-    if (simplify & (length(variant.id) < length(vid)) & !is.matrix(val))
+    if (no.data.index & (length(variant.id) < length(vid)) & !is.matrix(val))
     {
         if (!(is.logical(val) & any(is.na(val))) & !is.character(val))
         {

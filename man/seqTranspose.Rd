@@ -28,7 +28,7 @@ in the future version.
 }
 
 \examples{
-# the file of VCF
+# the file name of VCF
 (vcf.fn <- seqExampleFileName("vcf"))
 # or vcf.fn <- "C:/YourFolder/Your_VCF_File.vcf"
 

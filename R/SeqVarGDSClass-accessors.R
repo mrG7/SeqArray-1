@@ -551,7 +551,8 @@ seqTranspose <- function(gdsfile, var.name, compress=NULL, verbose=TRUE)
 {
     # check
     stopifnot(inherits(gdsfile, "SeqVarGDSClass"))
-    stopifnot(is.character(var.name) & (length(var.name)==1))
+    stopifnot(is.character(var.name) & is.vector(var.name))
+    stopifnot(length(var.name) == 1)
 
     node <- index.gdsn(gdsfile, var.name)
     desp <- objdesp.gdsn(node)
@@ -571,7 +572,7 @@ seqTranspose <- function(gdsfile, var.name, compress=NULL, verbose=TRUE)
             compress <- desp$compress
 
         name <- paste("~", index[length(index)], sep="")
-        newnode <- add.gdsn(folder, name, val=NULL, storage=desp$type,
+        newnode <- add.gdsn(folder, name, val=NULL, storage=desp$storage,
             valdim=dm, compress=compress)
 
         # write data

@@ -436,6 +436,7 @@ struct TVCF_Field_Info
 {
 	string name;           //< INFO ID
 	int type;              //< 1: integer, 2: float, 3: flag, 4: character,
+	bool import_flag;      //< true: import, false: not import
 	PdSequenceX data_obj;  //< the pointer to data object
 	PdSequenceX len_obj;   //< can be NULL if variable-length object
 	int number;            //< according to 'Number' field, if -1: variable-length, -2: # of alleles, -3: # of genotypes
@@ -508,6 +509,7 @@ struct TVCF_Field_Format
 {
 	string name;           //< FORMAT ID
 	int type;              //< 1: integer, 2: float, 3: flag, 4: character,
+	bool import_flag;      //< true: import, false: not import
 	PdSequenceX data_obj;  //< the pointer to data object
 	PdSequenceX len_obj;   //< can be NULL if variable-length object
 	int number;            //< according to 'Number' field, if -1: variable-length, -2: # of alleles, -3: # of genotypes
@@ -1568,7 +1570,10 @@ DLLEXPORT SEXP seq_SplitSelectedVariant(SEXP gdsfile, SEXP Index, SEXP n_process
 	// ***************************************************
 	// output
 	SEXP rv = NEW_INTEGER(1);
+	PROTECT(rv);
 	INTEGER(rv)[0] = ans_n;
+	UNPROTECT(1);
+
 	return(rv);
 }
 
@@ -1623,7 +1628,10 @@ DLLEXPORT SEXP seq_SplitSelectedSample(SEXP gdsfile, SEXP Index, SEXP n_process)
 	// ***************************************************
 	// output
 	SEXP rv = NEW_INTEGER(1);
+	PROTECT(rv);
 	INTEGER(rv)[0] = ans_n;
+	UNPROTECT(1);
+
 	return(rv);
 }
 
@@ -3263,28 +3271,38 @@ static CoreArray::Int32 getInt32(const string &txt, bool RaiseError)
 	if (endptr == p)
 	{
 		if ((*p != '.') && RaiseError)
-			throw ErrSeqArray("Invalid integer conversion \"%s\".", SHORT_TEXT(p).c_str());
+		{
+			throw ErrSeqArray("Invalid integer conversion \"%s\".",
+				SHORT_TEXT(p).c_str());
+		}
 		val = NA_INTEGER;
 	} else {
 		if ((val < INT_MIN) || (val > INT_MAX))
 		{
 			val = NA_INTEGER;
 			if (RaiseError)
-				throw ErrSeqArray("Invalid integer conversion \"%s\".", SHORT_TEXT(p).c_str());
+			{
+				throw ErrSeqArray("Invalid integer conversion \"%s\".",
+					SHORT_TEXT(p).c_str());
+			}
 		}
 		p = SKIP(endptr);
 		if (*p != 0)
 		{
 			val = NA_INTEGER;
 			if (RaiseError)
-				throw ErrSeqArray("Invalid integer conversion \"%s\".", SHORT_TEXT(p).c_str());
+			{
+				throw ErrSeqArray("Invalid integer conversion \"%s\".",
+					SHORT_TEXT(p).c_str());
+			}
 		}
 	}
 	return val;
 }
 
 /// get multiple integers from a string
-static void getInt32Array(const string &txt, vector<CoreArray::Int32> &I32, bool RaiseError)
+static void getInt32Array(const string &txt, vector<CoreArray::Int32> &I32,
+	bool RaiseError)
 {
 	const char *p = SKIP(txt.c_str());
 	I32.clear();
@@ -3296,14 +3314,20 @@ static void getInt32Array(const string &txt, vector<CoreArray::Int32> &I32, bool
 		if (endptr == p)
 		{
 			if ((*p != '.') && RaiseError)
-				throw ErrSeqArray("Invalid integer conversion \"%s\".", SHORT_TEXT(p).c_str());
+			{
+				throw ErrSeqArray("Invalid integer conversion \"%s\".",
+					SHORT_TEXT(p).c_str());
+			}
 			val = NA_INTEGER;
 		} else {
 			if ((val < INT_MIN) || (val > INT_MAX))
 			{
 				val = NA_INTEGER;
 				if (RaiseError)
-					throw ErrSeqArray("Invalid integer conversion \"%s\".", SHORT_TEXT(p).c_str());
+				{
+					throw ErrSeqArray("Invalid integer conversion \"%s\".",
+						SHORT_TEXT(p).c_str());
+				}
 			}
 			p = endptr;
 		}
@@ -3324,7 +3348,10 @@ static float getFloat(string &txt, bool RaiseError)
 	if (endptr == p)
 	{
 		if ((*p != '.') && RaiseError)
-			throw ErrSeqArray("Invalid float conversion \"%s\".", SHORT_TEXT(p).c_str());
+		{
+			throw ErrSeqArray("Invalid float conversion \"%s\".",
+				SHORT_TEXT(p).c_str());
+		}
 		val = R_NaN;
 	} else {
 		p = SKIP(endptr);
@@ -3332,14 +3359,18 @@ static float getFloat(string &txt, bool RaiseError)
 		{
 			val = R_NaN;
 			if (RaiseError)
-				throw ErrSeqArray("Invalid float conversion \"%s\".", SHORT_TEXT(p).c_str());
+			{
+				throw ErrSeqArray("Invalid float conversion \"%s\".",
+					SHORT_TEXT(p).c_str());
+			}
 		}
 	}
 	return val;
 }
 
 /// get an integer from  a string
-static void getFloatArray(const string &txt, vector<float> &F32, bool RaiseError)
+static void getFloatArray(const string &txt, vector<float> &F32,
+	bool RaiseError)
 {
 	const char *p = SKIP(txt.c_str());
 	F32.clear();
@@ -3350,7 +3381,10 @@ static void getFloatArray(const string &txt, vector<float> &F32, bool RaiseError
 		if (endptr == p)
 		{
 			if ((*p != '.') && RaiseError)
-				throw ErrSeqArray("Invalid float conversion \"%s\".", SHORT_TEXT(p).c_str());
+			{
+				throw ErrSeqArray("Invalid float conversion \"%s\".",
+					SHORT_TEXT(p).c_str());
+			}
 			val = R_NaN;
 		} else
 			p = endptr;
@@ -3404,9 +3438,7 @@ static const char *_GetNameValue(const char *p, string &name, string &val)
 }
 
 
-
-
-
+/// VCF4 --> GDS
 DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 	SEXP param, SEXP ReadLineFun, SEXP ReadLine_Param, SEXP rho)
 {
@@ -3436,7 +3468,7 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 		// the variable name for genotypic data
 		string geno_id = CHAR(STRING_ELT(getListElement(param, "genotype.var.name"), 0));
 		// NumericRaiseError
-		bool RaiseError = (LOGICAL(getListElement(param, "cvt.raise.err"))[0] == TRUE);
+		bool RaiseError = (LOGICAL(getListElement(param, "raise.error"))[0] == TRUE);
 		// verbose
 		// bool Verbose = (LOGICAL(getListElement(param, "verbose"))[0] == TRUE);
 
@@ -3476,12 +3508,14 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 			SEXP info_ID = getListElement(info, "ID");
 			SEXP info_inttype = getListElement(info, "int_type");
 			SEXP info_intnum = getListElement(info, "int_num");
+			SEXP info_flag = getListElement(info, "import.flag");
 			TVCF_Field_Info val;
 
 			for (int i=0; i < Rf_length(info_ID); i++)
 			{
 				val.name = CHAR(STRING_ELT(info_ID, i));
 				val.type = INTEGER(info_inttype)[i];
+				val.import_flag = (LOGICAL(info_flag)[i] == TRUE);
 				val.number = INTEGER(info_intnum)[i];
 				val.data_obj = gds_NodePath(Root,
 					(string("annotation/info/") + val.name).c_str());
@@ -3498,12 +3532,14 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 			SEXP fmt_ID = getListElement(fmt, "ID");
 			SEXP fmt_inttype = getListElement(fmt, "int_type");
 			SEXP fmt_intnum = getListElement(fmt, "int_num");
+			SEXP fmt_flag = getListElement(fmt, "import.flag");
 			TVCF_Field_Format val;
 
 			for (int i=0; i < Rf_length(fmt_ID); i++)
 			{
 				val.name = CHAR(STRING_ELT(fmt_ID, i));
 				val.type = INTEGER(fmt_inttype)[i];
+				val.import_flag = (LOGICAL(fmt_flag)[i] == TRUE);
 				val.number = INTEGER(fmt_intnum)[i];
 				val.data_obj = gds_NodePath(Root,
 					(string("annotation/format/") + val.name + "/data").c_str());
@@ -3690,49 +3726,65 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 					if (pInfo->used)
 						throw ErrSeqArray("Duplicate INFO ID: %s.", name.c_str());
 
-					switch (pInfo->type)
+					if (pInfo->import_flag)
 					{
-					case FIELD_TYPE_INT:
-						getInt32Array(value, I32s, RaiseError);
-						pInfo->Check(I32s, name, num_allele);
-						CHECK(gds_AppendData(pInfo->data_obj, I32s.size(), &(I32s[0]), svInt32));
-						break;
-
-					case FIELD_TYPE_FLOAT:
-						getFloatArray(value, F32s, RaiseError);
-						pInfo->Check(F32s, name, num_allele);
-						CHECK(gds_AppendData(pInfo->data_obj, F32s.size(), &(F32s[0]), svFloat32));
-						break;
-
-					case FIELD_TYPE_FLAG:
-						if (!value.empty())
+						switch (pInfo->type)
 						{
-							throw ErrSeqArray("INFO ID '%s' should be a flag without values.",
-								name.c_str());
+						case FIELD_TYPE_INT:
+							getInt32Array(value, I32s, RaiseError);
+							pInfo->Check(I32s, name, num_allele);
+							CHECK(gds_AppendData(pInfo->data_obj, I32s.size(),
+								&(I32s[0]), svInt32));
+							break;
+
+						case FIELD_TYPE_FLOAT:
+							getFloatArray(value, F32s, RaiseError);
+							pInfo->Check(F32s, name, num_allele);
+							CHECK(gds_AppendData(pInfo->data_obj, F32s.size(),
+								&(F32s[0]), svFloat32));
+							break;
+
+						case FIELD_TYPE_FLAG:
+							if (!value.empty())
+							{
+								throw ErrSeqArray("INFO ID '%s' should be a flag without values.",
+									name.c_str());
+							}
+							I32 = 1;
+							CHECK(gds_AppendData(pInfo->data_obj, 1, &I32, svInt32));
+							break;
+
+						case FIELD_TYPE_STRING:
+							getStringArray(value, StrList);
+							pInfo->Check(StrList, name, num_allele);
+							for (int k=0; k < (int)StrList.size(); k++)
+							{
+								CHECK(gds_AppendString(pInfo->data_obj,
+									StrList[k].c_str()));
+							}
+							break;
+
+						default:
+							throw ErrSeqArray("Invalid INFO Type.");
 						}
-						I32 = 1;
-						CHECK(gds_AppendData(pInfo->data_obj, 1, &I32, svInt32));
-						break;
-
-					case FIELD_TYPE_STRING:
-						getStringArray(value, StrList);
-						pInfo->Check(StrList, name, num_allele);
-						for (int k=0; k < (int)StrList.size(); k++)
-							CHECK(gds_AppendString(pInfo->data_obj, StrList[k].c_str()));
-						break;
-
-					default:
-						throw ErrSeqArray("Invalid INFO Type.");
 					}
+
 					pInfo->used = true;
-				} else
-					throw ErrSeqArray("Unknow INFO ID: %s, should be defined ahead.", name.c_str());
+				} else {
+					if (RaiseError)
+					{
+						throw ErrSeqArray(
+							"Unknown INFO ID: %s, should be defined ahead.",
+							name.c_str());
+					} else
+						warning("Unknown INFO ID '%s' is ignored.", name.c_str());
+				}
 			}
 
 			// for which does not exist
 			for (pInfo = info_list.begin(); pInfo != info_list.end(); pInfo++)
 			{
-				if (!pInfo->used)
+				if (!pInfo->used && pInfo->import_flag)
 				{
 					switch (pInfo->type)
 					{
@@ -3796,9 +3848,21 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 							{ it->used = true; break; }
 					}
 					if (it == format_list.end())
-						throw ErrSeqArray("Unknown FORMAT ID: %s, it should be defined ahead.", name.c_str());
-					// push
-					fmt_ptr.push_back(&(*it));
+					{
+						if (RaiseError)
+						{
+							throw ErrSeqArray(
+								"Unknown FORMAT ID: %s, it should be defined ahead.",
+								name.c_str());
+						} else {
+							warning("Unknown FORMAT ID '%s' is ignored.",
+								name.c_str());
+							fmt_ptr.push_back(NULL);
+						}
+					} else {
+						// push
+						fmt_ptr.push_back(&(*it));
+					}
 				}
 			}
 
@@ -3889,34 +3953,38 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 				for (int i=0; i < (int)fmt_ptr.size(); i++)
 				{
 					TVCF_Field_Format *pFmt = fmt_ptr[i];
-
-					// get the field context
 					p = pCh;
 					while ((*p != 0) && (*p != ':')) p ++;
-					value.assign(pCh, p);
-					pCh = (*p == ':') ? (p + 1) : p;
 
-					// parse the field
-					switch (pFmt->type)
+					if ((pFmt!=NULL) && pFmt->import_flag)
 					{
-					case FIELD_TYPE_INT:
-						getInt32Array(value, pFmt->I32ss[samp_idx], RaiseError);
-						pFmt->Check(pFmt->I32ss[samp_idx], name, num_allele, NA_INTEGER);
-						break;
+						// get the field context
+						value.assign(pCh, p);
 
-					case FIELD_TYPE_FLOAT:
-						getFloatArray(value, pFmt->F32ss[samp_idx], RaiseError);
-						pFmt->Check(pFmt->F32ss[samp_idx], name, num_allele, (float)R_NaN);
-						break;
+						// parse the field
+						switch (pFmt->type)
+						{
+						case FIELD_TYPE_INT:
+							getInt32Array(value, pFmt->I32ss[samp_idx], RaiseError);
+							pFmt->Check(pFmt->I32ss[samp_idx], name, num_allele, NA_INTEGER);
+							break;
 
-					case FIELD_TYPE_STRING:
-						getStringArray(value, pFmt->UTF8ss[samp_idx]);
-						pFmt->Check(pFmt->UTF8ss[samp_idx], name, num_allele, BlackString);
-						break;
+						case FIELD_TYPE_FLOAT:
+							getFloatArray(value, pFmt->F32ss[samp_idx], RaiseError);
+							pFmt->Check(pFmt->F32ss[samp_idx], name, num_allele, (float)R_NaN);
+							break;
 
-					default:
-						throw ErrSeqArray("Invalid FORMAT Type.");
+						case FIELD_TYPE_STRING:
+							getStringArray(value, pFmt->UTF8ss[samp_idx]);
+							pFmt->Check(pFmt->UTF8ss[samp_idx], name, num_allele, BlackString);
+							break;
+
+						default:
+							throw ErrSeqArray("Invalid FORMAT Type.");
+						}
 					}
+
+					pCh = (*p == ':') ? (p + 1) : p;
 				}
 			}
 
@@ -3964,27 +4032,30 @@ DLLEXPORT SEXP seq_Parse_VCF4(SEXP vcf_fn, SEXP header, SEXP gds_root,
 
 
 			// #################################################
-			// for-loop all format IDs: writing
+			// for-loop all format IDs: write
 			for (vector<TVCF_Field_Format>::iterator it = format_list.begin();
 				it != format_list.end(); it++)
 			{
-				if (it->used)
+				if (it->import_flag)
 				{
-					if (it->number > 0)
+					if (it->used)
 					{
-						// fixed-length array
-						it->WriteFixedLength();
-						I32 = 1;
-					} else if (it->number < 0)
-					{
-						// variable-length array
-						I32 = it->WriteVariableLength(nTotalSamp, I32s, F32s);
-					} else
-						throw ErrSeqArray("Invalid FORMAT Number.");
-					CHECK(gds_AppendData(it->len_obj, 1, &I32, svInt32));
-				} else {
-					I32 = 0;
-					CHECK(gds_AppendData(it->len_obj, 1, &I32, svInt32));
+						if (it->number > 0)
+						{
+							// fixed-length array
+							it->WriteFixedLength();
+							I32 = 1;
+						} else if (it->number < 0)
+						{
+							// variable-length array
+							I32 = it->WriteVariableLength(nTotalSamp, I32s, F32s);
+						} else
+							throw ErrSeqArray("Invalid FORMAT Number.");
+						CHECK(gds_AppendData(it->len_obj, 1, &I32, svInt32));
+					} else {
+						I32 = 0;
+						CHECK(gds_AppendData(it->len_obj, 1, &I32, svInt32));
+					}
 				}
 			}
 		}
