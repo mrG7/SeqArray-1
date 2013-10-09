@@ -5,9 +5,9 @@ setOldClass("gdsn.class")
 
 # create class definitions
 setClass("SeqVarGDSClass", contains="gds.class")
-setClass("SeqVarNodeNewInfoClass", slots = c(
-        gdsn = "gdsn.class", number = "integer", type = "character"
-    ))
+# setClass("SeqVarNodeNewInfoClass", slots = c(
+#         gdsn = "gdsn.class", number = "integer", type = "character"
+#     ))
 
 
 # test the validity of objects

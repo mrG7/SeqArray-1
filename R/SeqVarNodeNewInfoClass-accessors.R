@@ -126,7 +126,7 @@ seqInfoNewVar <- function(gdsfile, var.name, variant.id, val,
 #######################################################################
 # Add a new variable to the INFO field
 #
-seqInfoNewVarEx <- function(gdsfile, var.name,
+.seqInfoNewVarEx <- function(gdsfile, var.name,
     number=c(".", "A", "G"),
     type=c("Integer", "Float", "Flag", "Character", "String"),
     description="", compress=c("ZIP.MAX", ""))
@@ -183,20 +183,20 @@ seqInfoNewVarEx <- function(gdsfile, var.name,
 #######################################################################
 # 
 #
-setMethod("seqAppend", "SeqVarNodeNewInfoClass",
-    function(object, variant.id=NULL, val)
-    {
-    }
-)
+# setMethod("seqAppend", "SeqVarNodeNewInfoClass",
+#     function(object, variant.id=NULL, val)
+#     {
+#     }
+# )
 
 
 
 #######################################################################
 # 
 #
-setMethod("seqClose", "SeqVarNodeNewInfoClass",
-    function(object)
-    {
-        print(object)
-    }
-)
+# setMethod("seqClose", "SeqVarNodeNewInfoClass",
+#     function(object)
+#     {
+#         print(object)
+#     }
+# )
