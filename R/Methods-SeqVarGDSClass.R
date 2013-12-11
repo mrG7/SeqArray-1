@@ -213,7 +213,7 @@ setMethod("asVCF",
         x <- .toAtomicList(xl, des$type[i])
       }
       x[is.na(x)] <- NA # change NaN to NA
-      x[x == ""] <- NA
+      x[x %in% ""] <- NA
       infoDf[[des$var.name[i]]] <- x
     }
   }

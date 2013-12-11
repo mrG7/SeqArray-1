@@ -1114,7 +1114,7 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 
     if (verbose)
         cat("Optimize the access efficiency ...\n")
-    cleanup.gds(out.fn, deep=FALSE, verbose=verbose)
+    cleanup.gds(out.fn, verbose=verbose)
 
     # output
     invisible(normalizePath(out.fn))
@@ -1408,10 +1408,7 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
 
         # library
         if (!require(parallel))
-        {
-            if (!require(snow))
-                stop("the `parallel' package should be installed.")
-        }
+            stop("the `parallel' package should be installed.")
 
         # the selected variants
         selection <- seqGetFilter(gdsfile)

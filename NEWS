@@ -1,3 +1,8 @@
+Changes in 1.3.1:
+
+	* update according to the new version of VariantAnnotation
+
+
 Changes in 1.1.5:
 
 	* minor bug fix in asVCF
