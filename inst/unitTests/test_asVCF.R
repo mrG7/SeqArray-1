@@ -127,6 +127,23 @@ test_info_geno <- function() {
   unlink(gdsfile)
 }
 
+test_info_geno_na <- function() {
+  vcffile <- seqExampleFileName("vcf")
+  gdsfile <- seqExampleFileName("gds")
+  info <- NA
+  geno <- NA
+  vcf <- readVcf(vcffile, genome="hg19",
+                 param=ScanVcfParam(info=info, geno=geno))
+  gdsobj <- seqOpen(gdsfile)
+
+  vcfg <- asVCF(gdsobj, info=info, geno=geno)
+  .test_header(header(vcf), header(vcfg))
+  .test_info(info(vcf), info(vcfg))
+  .test_geno(geno(vcf), geno(vcfg))
+  
+  seqClose(gdsobj)
+}
+  
 test_filters <- function() {
   vcffile <- system.file("extdata", "chr22.vcf.gz", package="VariantAnnotation")
   gdsfile <- tempfile()
@@ -155,5 +172,3 @@ test_filters <- function() {
   unlink(gdsfile)
 }
 
-
-  

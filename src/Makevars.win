@@ -4,6 +4,3 @@
 
 # additional preprocessor options
 PKG_CPPFLAGS = -I. -DCOREARRAY_NO_FORCEINLINE
-
-# to set flags for the linker
-PKG_LIBS = $(FLIBS) $(BLAS_LIBS) $(LAPACK_LIBS)

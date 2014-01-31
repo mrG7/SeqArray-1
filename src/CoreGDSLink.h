@@ -39,6 +39,7 @@
 #define _CoreGDSLink_H_
 
 #include <dType.h>
+#include <dString.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,11 +65,16 @@ namespace GDSInterface
 	class ErrCoreArray: public std::exception
 	{
 	public:
-		ErrCoreArray() {};
-		ErrCoreArray(const char *fmt, ...) { _COREARRAY_ERRMACRO_(fmt); }
-		ErrCoreArray(const std::string &msg) { fMessage = msg; }
-		virtual const char *what() const throw() { return fMessage.c_str(); }
+		ErrCoreArray(): std::exception()
+			{ }
+		ErrCoreArray(const char *fmt, ...): std::exception()
+			{ _COREARRAY_ERRMACRO_(fmt); }
+		ErrCoreArray(const std::string &msg): std::exception()
+			{ fMessage = msg; }
+		virtual const char *what() const throw()
+			{ return fMessage.c_str(); }
 		virtual ~ErrCoreArray() throw() {};
+
 	protected:
 		std::string fMessage;
 		void Init(const char *fmt, va_list arglist);
