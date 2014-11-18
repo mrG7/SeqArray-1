@@ -676,7 +676,7 @@ seqVCF.SampID <- function(vcf.fn)
 
 
 #######################################################################
-# Convert a VCF (sequence) file to a GDS file
+# Convert a VCF (sequencing) file to a GDS file
 #
 
 seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
@@ -793,8 +793,10 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     gfile <- createfn.gds(out.fn)
     on.exit(closefn.gds(gfile))
 
+    put.attr.gdsn(gfile$root, "FileFormat", "SEQ_ARRAY")
     n <- add.gdsn(gfile, name="description", storage="folder")
     put.attr.gdsn(n, "sequence.variant.format", "v1.0")
+
     put.attr.gdsn(n, "vcf.fileformat", header$fileformat)
     if (!is.null(header$assembly))
         put.attr.gdsn(n, "vcf.assembly", header$assembly)
@@ -826,6 +828,8 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     nSamp <- length(samp.id)
     add.gdsn(gfile, "sample.id", samp.id, compress=compress("sample.id"),
         closezip=TRUE)
+    if (verbose)
+        cat(sprintf("\tthe number of samples: %d\n", nSamp))
 
 
     ##################################################
@@ -851,17 +855,17 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     # add a folder for genotypes
     varGeno <- add.gdsn(gfile, name="genotype", storage="folder")
     put.attr.gdsn(varGeno, "VariableName", genotype.var.name[1])
-    put.attr.gdsn(varGeno, "Description", geno_format$Description[i])
+    put.attr.gdsn(varGeno, "Description", geno_format$Description[1])
 
     # add data to the folder of genotype
     if (header$num.ploidy > 1)
     {
-        add.gdsn(varGeno, "data", storage="bit2",
+        geno.node <- add.gdsn(varGeno, "data", storage="bit2",
             valdim=c(header$num.ploidy, nSamp, 0),
             compress=compress("genotype"))
     } else {
-        add.gdsn(varGeno, "data", storage="bit2", valdim=c(nSamp, 0),
-            compress=compress("genotype"))
+        geno.node <- add.gdsn(varGeno, "data", storage="bit2",
+            valdim=c(nSamp, 0), compress=compress("genotype"))
     }
     node <- add.gdsn(varGeno, "@data", storage="int32", valdim=c(0),
         compress=compress("genotype"))
@@ -1015,7 +1019,7 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     else
         import.flag <- header$format$ID %in% fmt.import
 
-    for (i in 1:nrow(header$format))
+    for (i in seq_len(nrow(header$format)))
     {
         # FORMAT Type
         switch(tolower(header$format$Type[i]),
@@ -1110,7 +1114,10 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
         }
 
         if (verbose)
+        {
             cat("\tdone.\n")
+            print(geno.node)
+        }
 
         on.exit()
         close(opfile)
@@ -1133,7 +1140,7 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 
 
 #######################################################################
-# Convert a GDS file to a VCF (sequence) file
+# Convert a GDS file to a VCF (sequencing) file
 #
 
 seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRUE)
