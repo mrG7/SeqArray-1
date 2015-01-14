@@ -5,10 +5,6 @@
 # Description:
 #     Big Data Management of Sequencing-based Genetic Variants
 #
-# Author: Xiuwen Zheng
-# Email: zhengx@u.washington.edu
-#
-
 
 
 
@@ -397,6 +393,7 @@ seqVCF.Header <- function(vcf.fn)
     # parse and determine how many copies of genomes: haploid, diploid or others
     geno.text <- NULL
 
+    n <- 0L
     for (i in 1:length(vcf.fn))
     {
         opfile <- file(vcf.fn[i], open="rt")
@@ -406,6 +403,7 @@ seqVCF.Header <- function(vcf.fn)
         ans <- NULL
         while (length(s <- readLines(opfile, n=1)) > 0)
         {
+            n <- n + 1L
             if (substr(s, 1, 6) != "#CHROM")
             {
                 s <- substring(s, 3)
@@ -418,6 +416,14 @@ seqVCF.Header <- function(vcf.fn)
                     geno.text <- c(geno.text, ss[-(1:9)])
                 }
                 break
+            }
+            if ((n %% 10000L) == 0)
+            {
+                warning(sprintf(
+                "There are too many lines in the header (>= %d). ", n),
+                "In order not to slow down the conversion, please consider ",
+                "deleting unnecessary annotations (like contig).",
+                immediate.=TRUE)
             }
         }
 
@@ -505,6 +511,29 @@ seqVCF.Header <- function(vcf.fn)
 
     #########################################################
     # start
+
+    #########################################################
+    # ploidy
+
+    if (!is.null(geno.text))
+    {
+        txt <- unlist(sapply(geno.text, function(s) {
+            scan(text=s, what=character(), sep=":", quiet=TRUE, nmax=1) },
+            simplify=TRUE, USE.NAMES=FALSE))
+        num <- sapply(strsplit(txt, "[|/]"), function(x) length(x) )
+        tab <- table(num)
+        num.ploidy <- as.integer(names(which.max(tab)))
+    } else
+        num.ploidy <- as.integer(NA)
+
+    if (is.null(ans))
+    {
+        rv <- list(fileformat="unknown", info=NULL, filter=NULL, format=NULL,
+            alt=NULL, contig=NULL, assembly=NULL, header=NULL,
+            num.ploidy = num.ploidy)
+        class(rv) <- "SeqVCFHeaderClass"
+        return(rv)
+    }
 
     ans <- value.string(ans)
     ans <- data.frame(id=ans[,1], value=ans[,2], stringsAsFactors=FALSE)
@@ -621,17 +650,6 @@ seqVCF.Header <- function(vcf.fn)
 
 
     #########################################################
-    # ploidy
-
-    txt <- unlist(sapply(geno.text, function(s) {
-        scan(text=s, what=character(), sep=":", quiet=TRUE, nmax=1) },
-        simplify=TRUE, USE.NAMES=FALSE))
-    num <- sapply(strsplit(txt, "[|/]"), function(x) length(x) )
-    tab <- table(num)
-    num.ploidy <- as.integer(names(which.max(tab)))
-
-
-    #########################################################
     # output
 
     rv <- list(fileformat=fileformat, info=INFO, filter=FILTER, format=FORMAT,
@@ -679,9 +697,10 @@ seqVCF.SampID <- function(vcf.fn)
 # Convert a VCF (sequencing) file to a GDS file
 #
 
-seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
-    genotype.var.name = "GT", compress.option = seqCompress.Option(),
-    info.import=NULL, fmt.import=NULL, raise.error = TRUE, verbose = TRUE)
+seqVCF2GDS <- function(vcf.fn, out.fn, header=NULL,
+    genotype.var.name="GT", compress.option=seqCompress.Option(),
+    info.import=NULL, fmt.import=NULL, ignore.chr.prefix="chr",
+    raise.error=TRUE, verbose=TRUE)
 {
     # check
     stopifnot(is.character(vcf.fn) & is.vector(vcf.fn))
@@ -695,11 +714,14 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 
     stopifnot(is.character(genotype.var.name) & is.vector(genotype.var.name))
     stopifnot(length(genotype.var.name) == 1)
+    stopifnot(!is.na(genotype.var.name))
 
     stopifnot(is.null(info.import) |
         (is.character(info.import) & is.vector(info.import)))
     stopifnot(is.null(fmt.import) |
         (is.character(fmt.import) & is.vector(fmt.import)))
+
+    stopifnot(is.character(ignore.chr.prefix))
 
     stopifnot(is.logical(raise.error) & is.vector(raise.error))
     stopifnot(length(raise.error) == 1)
@@ -742,48 +764,62 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 
     if (is.null(header))
         header <- seqVCF.Header(vcf.fn)
-
-    # return list(fileformat=fileformat, info=INFO, filter=FILTER, format=FORMAT,
-    #   alt=ALT, contig=contig, assembly=assembly, header=ans)
+    # 'seqVCF.Header'
+    # returns list(fileformat=fileformat, info=INFO, filter=FILTER,
+    #              format=FORMAT, alt=ALT, contig=contig, assembly=assembly,
+    #              header=ans)
 
     if (verbose)
     {
         cat("The Variant Call Format (VCF) header:\n")
         cat("\tfile format: ", header$fileformat, "\n", sep="")
-        cat("\tthe number of sets of chromosomes (ploidy): ", header$num.ploidy, "\n", sep="")
+        cat("\tthe number of sets of chromosomes (ploidy): ",
+            header$num.ploidy, "\n", sep="")
+        cat("\tthe number of samples: ", length(samp.id), "\n", sep="")
     }
 
     # check header
+    tmp <- FALSE
     if (!is.null(header$format))
     {
-        if (nrow(header$format) <= 0)
-            stop("Variant ID should be defined in the FORMAT field.")
+        if (nrow(header$format) > 0)
+            tmp <- TRUE
+    }
+    if (tmp)
+    {
         geno_idx <- which(header$format$ID == genotype.var.name)
         if (length(geno_idx) <= 0)
         {
-            stop(sprintf("There is no variable in the FORMAT field according to '%s'.",
+            stop(sprintf(
+            "There is no variable in the FORMAT field according to '%s'.",
                 genotype.var.name))
         } else if (length(geno_idx) > 1)
         {
-            stop(sprintf("There are more than one variable in the FORMAT field according to '%s'.",
+            stop(sprintf(
+            "There are more than one variable in the FORMAT field according to '%s'.",
                 genotype.var.name))
         } else {
             if (tolower(header$format$Type[geno_idx]) != "string")
             {
-                stop(sprintf("'%s' in the FORMAT field should be string-type according to genotypes.",
+                stop(sprintf(
+                "'%s' in the FORMAT field should be string-type according to genotypes.",
                     genotype.var.name))
             }
             if (header$format$Number[geno_idx] != "1")
             {
-                stop(sprintf("'%s' in the FORMAT field should be one-length string-type.",
+                stop(sprintf(
+                "'%s' in the FORMAT field should be one-length string-type.",
                     genotype.var.name))
             }
         }
         geno_format <- header$format[geno_idx, ]
         header$format <- header$format[-geno_idx, ]
-    } else
-        stop("Variant ID should be defined in the FORMAT field.")
-
+    } else {
+        message("\t",
+            "variable id in the FORMAT field should be defined ahead, ",
+            "and the undefined id is/are ignored during the conversion.")
+        geno_format <- list(Description="Genotype")
+    }
 
 
 
@@ -828,8 +864,6 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     nSamp <- length(samp.id)
     add.gdsn(gfile, "sample.id", samp.id, compress=compress("sample.id"),
         closezip=TRUE)
-    if (verbose)
-        cat(sprintf("\tthe number of samples: %d\n", nSamp))
 
 
     ##################################################
@@ -893,9 +927,10 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
                 compress=compress("phase"))
         }
 
-        node <- add.gdsn(varPhase, "extra.index", storage="int32", valdim=c(3,0),
-            compress=compress("phase.extra"))
-        put.attr.gdsn(node, "R.colnames", c("sample.index", "variant.index", "length"))
+        node <- add.gdsn(varPhase, "extra.index", storage="int32",
+            valdim=c(3,0), compress=compress("phase.extra"))
+        put.attr.gdsn(node, "R.colnames",
+            c("sample.index", "variant.index", "length"))
         add.gdsn(varPhase, "extra", storage="bit1", valdim=c(0),
             compress=compress("phase.extra"))
     }
@@ -1007,19 +1042,26 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 
 
     ##################################################
-    # VCF VARIANT
+    # VCF Variants
 
-    # add the format field
+    # add the FORMAT field
     varFormat <- add.gdsn(varAnnot, "format", storage="folder")
 
-    int_type <- integer(nrow(header$format))
-    int_num  <- suppressWarnings(as.integer(header$format$Number))
-    if (is.null(fmt.import))
-        import.flag <- rep(TRUE, length(int_num))
-    else
-        import.flag <- header$format$ID %in% fmt.import
+    if (!is.null(header$format))
+    {
+        int_type <- integer(nrow(header$format))
+        int_num  <- suppressWarnings(as.integer(header$format$Number))
+        if (is.null(fmt.import))
+            import.flag <- rep(TRUE, length(int_num))
+        else
+            import.flag <- header$format$ID %in% fmt.import
+    } else {
+        int_type <- integer(0)
+        int_num <- integer(0)
+        import.flag <- logical(0)
+    }
 
-    for (i in seq_len(nrow(header$format)))
+    for (i in seq_len(length(int_type)))
     {
         # FORMAT Type
         switch(tolower(header$format$Type[i]),
@@ -1071,24 +1113,17 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
         }
     }
 
-    header$format$int_type <- as.integer(int_type)
-    header$format$int_num  <- as.integer(int_num)
-    header$format$import.flag <- import.flag
+    if (!is.null(header$format))
+    {
+        header$format$int_type <- as.integer(int_type)
+        header$format$int_num  <- as.integer(int_num)
+        header$format$import.flag <- import.flag
+    }
 
 
     ##################################################
     # sync file
     sync.gds(gfile)
-
-
-    ##################################################
-    # define wrapping R function for the C code 'seq_Parse_VCF4'
-    #   because 'getConnection' in Rconnections.h is still hidden
-    # see https://stat.ethz.ch/pipermail/r-devel/2007-April/045264.html
-    readline <- function(infile)
-    {
-        readLines(infile, n=512)
-    }
 
 
     ##################################################
@@ -1101,12 +1136,18 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
         if (verbose)
             cat("Parsing \"", vcf.fn[i], "\" ...\n", sep="")
 
+        ##################################################
+        # define wrapping R function for the C code 'sqa_Parse_VCF4'
+        #   because 'getConnection' in Rconnections.h is hidden
+        # see https://stat.ethz.ch/pipermail/r-devel/2007-April/045264.html
+
         # call C function
-        v <- .Call("seq_Parse_VCF4", vcf.fn[i], header, gfile$root,
+        v <- .Call(sqa_Parse_VCF4, vcf.fn[i], header, gfile$root,
             list(sample.num = as.integer(length(samp.id)),
                 genotype.var.name = genotype.var.name,
                 raise.error = raise.error, verbose = verbose),
-            readline, opfile, new.env())
+            readLines, opfile, 512L,  # 'readLines(opfile, 512L)'
+            ignore.chr.prefix, new.env())
         if (length(v) > 0)
         {
             put.attr.gdsn(varFilter, "R.class", "factor")
@@ -1114,10 +1155,7 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
         }
 
         if (verbose)
-        {
-            cat("\tdone.\n")
             print(geno.node)
-        }
 
         on.exit()
         close(opfile)
@@ -1130,7 +1168,10 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
     # optimize access efficiency
 
     if (verbose)
+    {
+        cat("Done.\n")
         cat("Optimize the access efficiency ...\n")
+    }
     cleanup.gds(out.fn, verbose=verbose)
 
     # output
@@ -1143,7 +1184,8 @@ seqVCF2GDS <- function(vcf.fn, out.fn, header = NULL,
 # Convert a GDS file to a VCF (sequencing) file
 #
 
-seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRUE)
+seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL,
+    verbose=TRUE)
 {
     # check
     stopifnot(inherits(gdsfile, "SeqVarGDSClass"))
@@ -1184,7 +1226,7 @@ seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRU
     ## double quote text if needed
     dq <- function(s, text=FALSE)
     {
-        .Call("seq_Quote", s, text, PACKAGE="SeqArray")
+        .Call(sqa_Quote, s, text)
     }
 
 
@@ -1355,7 +1397,7 @@ seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRU
     len.fmt <- suppressWarnings(as.integer(len.fmt))
 
     # call C function
-    .Call("seq_InitOutVCF4", len.info, len.fmt, PACKAGE="SeqArray")
+    .Call(sqa_InitOutVCF4, len.info, len.fmt)
 
 
     # variable names
@@ -1376,7 +1418,7 @@ seqGDS2VCF <- function(gdsfile, vcf.fn, info.var=NULL, fmt.var=NULL, verbose=TRU
     # output lines variant by variant
     seqApply(gdsfile, nm, margin="by.variant", as.is="none",
         FUN = function(x) {
-            s <- .Call("seq_OutVCF4", x, PACKAGE="SeqArray")
+            s <- .Call(sqa_OutVCF4, x)
             cat(s, file=ofile)
     })
 
@@ -1451,12 +1493,10 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
 
             if (.split == "by.variant")
             {
-                if (.Call("seq_SplitSelectedVariant", gfile, .idx, .n_process,
-                        PACKAGE="SeqArray") <= 0)
+                if (.Call(sqa_SplitSelectedVariant, gfile, .idx, .n_process) <= 0)
                     return(NULL)
             } else if (.split == "by.sample") {
-                if (.Call("seq_SplitSelectedSample", gfile, .idx, .n_process,
-                        PACKAGE="SeqArray") <= 0)
+                if (.Call(sqa_SplitSelectedSample, gfile, .idx, .n_process) <= 0)
                     return(NULL)
             }
 
@@ -1490,7 +1530,7 @@ seqParallel <- function(cl, gdsfile, FUN = function(gdsfile, ...) NULL,
 .onAttach <- function(lib, pkg)
 {
     # initialize SeqArray
-    .Call("seq_Init", PACKAGE="SeqArray")
+    .Call(sqa_Init)
 
     TRUE
 }

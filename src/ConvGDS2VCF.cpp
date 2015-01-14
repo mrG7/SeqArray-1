@@ -8,7 +8,7 @@
 //
 // ConvGDS2VCF.cpp: the C++ code for the conversion from GDS to VCF
 //
-// Copyright (C) 2013 - 2014	Xiuwen Zheng [zhengx@u.washington.edu]
+// Copyright (C) 2013-2015    Xiuwen Zheng [zhengx@u.washington.edu]
 //
 // This file is part of SeqArray.
 //
@@ -138,7 +138,7 @@ static const string TO_TEXT(SEXP X, int Start=0, int MaxCnt=-1,
 }
 
 
-/// used in seq_OutVCF4
+/// used in sqa_OutVCF4
 static vector<int> _VCF4_INFO_Number;    //< 
 static vector<int> _VCF4_FORMAT_Number;  //< 
 
@@ -151,7 +151,7 @@ extern "C"
 // ###########################################################
 
 /// double quote text if needed
-COREARRAY_DLL_EXPORT SEXP seq_Quote(SEXP text, SEXP dQuote)
+COREARRAY_DLL_EXPORT SEXP sqa_Quote(SEXP text, SEXP dQuote)
 {
 	SEXP NewText, ans;
 	PROTECT(NewText = AS_CHARACTER(text));
@@ -177,7 +177,7 @@ COREARRAY_DLL_EXPORT SEXP seq_Quote(SEXP text, SEXP dQuote)
 
 
 /// convert to VCF4
-COREARRAY_DLL_EXPORT SEXP seq_InitOutVCF4(SEXP Info, SEXP Format)
+COREARRAY_DLL_EXPORT SEXP sqa_InitOutVCF4(SEXP Info, SEXP Format)
 {
 	int *pInfo = INTEGER(Info);
 	_VCF4_INFO_Number.assign(pInfo, pInfo + Rf_length(Info));
@@ -188,7 +188,7 @@ COREARRAY_DLL_EXPORT SEXP seq_InitOutVCF4(SEXP Info, SEXP Format)
 }
 
 /// convert to VCF4
-COREARRAY_DLL_EXPORT SEXP seq_OutVCF4(SEXP X)
+COREARRAY_DLL_EXPORT SEXP sqa_OutVCF4(SEXP X)
 {
 	const char *p, *s;
 	string txt, tmp;

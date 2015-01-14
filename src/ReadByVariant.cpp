@@ -8,7 +8,7 @@
 //
 // ReadByVariant.cpp: Read data variant by variant
 //
-// Copyright (C) 2013 - 2014	Xiuwen Zheng [zhengx@u.washington.edu]
+// Copyright (C) 2013-2015    Xiuwen Zheng [zhengx@u.washington.edu]
 //
 // This file is part of SeqArray.
 //
@@ -181,7 +181,8 @@ public:
 				IndexNode = GDS_Node_Path(Root, Path2.c_str(), FALSE);
 				if (IndexNode == NULL)
 					throw ErrSeqArray("'%s' is missing!", Path2.c_str());
-				if ((GDS_Seq_DimCnt(IndexNode) != 1) || (GDS_Seq_GetTotalCount(IndexNode) != nVariant))
+				if ((GDS_Seq_DimCnt(IndexNode) != 1) ||
+						(GDS_Seq_GetTotalCount(IndexNode) != nVariant))
 					throw ErrSeqArray(ErrDim, Path2.c_str());
 
 				SelPtr[1] = SampleSel;
@@ -308,11 +309,11 @@ public:
 	void ReadGenoData(int *Base)
 	{
 		// the size of Init.GENO_BUFFER has been check in 'Init()'
-		int SlideCnt = DLen[1]*DLen[2];
+		ssize_t SlideCnt = DLen[1]*DLen[2];
 
 		TdIterator it;
 		GDS_Iter_GetStart(Node, &it);
-		GDS_Iter_Offset(&it, IndexCellVariant*SlideCnt);
+		GDS_Iter_Offset(&it, C_Int64(IndexCellVariant)*SlideCnt);
 		GDS_Iter_RData(&it, &Init.GENO_BUFFER[0], SlideCnt, svUInt8);
 		C_UInt8 *s = &Init.GENO_BUFFER[0];
 		int *p = Base;
@@ -333,7 +334,7 @@ public:
 		for (int idx=1; idx < NumCellVariant; idx ++)
 		{
 			GDS_Iter_GetStart(Node, &it);
-			GDS_Iter_Offset(&it, (IndexCellVariant + idx)*SlideCnt);
+			GDS_Iter_Offset(&it, (C_Int64(IndexCellVariant) + idx)*SlideCnt);
 			GDS_Iter_RData(&it, &Init.GENO_BUFFER[0], SlideCnt, svUInt8);
 
 			int shift = idx*2;
@@ -539,7 +540,7 @@ static SEXP VAR_LOGICAL(PdGDSObj Node, SEXP Array)
 }
 
 /// Get data from a working space
-COREARRAY_DLL_EXPORT SEXP seq_GetData(SEXP gdsfile, SEXP var_name)
+COREARRAY_DLL_EXPORT SEXP sqa_GetData(SEXP gdsfile, SEXP var_name)
 {
 	COREARRAY_TRY
 
@@ -548,7 +549,7 @@ COREARRAY_DLL_EXPORT SEXP seq_GetData(SEXP gdsfile, SEXP var_name)
 		// the selection
 		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_R_SEXP2Obj(getListElement(gdsfile, "root"));
+		PdGDSObj Root = GDS_R_SEXP2Obj(GetListElement(gdsfile, "root"));
 
 		// 
 		C_BOOL *SelPtr[256];
@@ -851,7 +852,7 @@ COREARRAY_DLL_EXPORT SEXP seq_GetData(SEXP gdsfile, SEXP var_name)
 // ###########################################################
 
 /// Apply functions over margins on a working space
-COREARRAY_DLL_EXPORT SEXP seq_Apply_Variant(SEXP gdsfile, SEXP var_name,
+COREARRAY_DLL_EXPORT SEXP sqa_Apply_Variant(SEXP gdsfile, SEXP var_name,
 	SEXP FUN, SEXP as_is, SEXP var_index, SEXP rho)
 {
 	COREARRAY_TRY
@@ -859,7 +860,7 @@ COREARRAY_DLL_EXPORT SEXP seq_Apply_Variant(SEXP gdsfile, SEXP var_name,
 		// the selection
 		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_R_SEXP2Obj(getListElement(gdsfile, "root"));
+		PdGDSObj Root = GDS_R_SEXP2Obj(GetListElement(gdsfile, "root"));
 
 		// init selection
 		if (Sel.Sample.empty())
@@ -1110,7 +1111,7 @@ COREARRAY_DLL_EXPORT SEXP seq_Apply_Variant(SEXP gdsfile, SEXP var_name,
 // ###########################################################
 
 /// Apply functions via a sliding window over variants
-COREARRAY_DLL_EXPORT SEXP seq_SlidingWindow(SEXP gdsfile, SEXP var_name,
+COREARRAY_DLL_EXPORT SEXP sqa_SlidingWindow(SEXP gdsfile, SEXP var_name,
 	SEXP win_size, SEXP shift_size, SEXP FUN, SEXP as_is, SEXP var_index,
 	SEXP rho)
 {
@@ -1119,7 +1120,7 @@ COREARRAY_DLL_EXPORT SEXP seq_SlidingWindow(SEXP gdsfile, SEXP var_name,
 		// the selection
 		TInitObject::TSelection &Sel = Init.Selection(gdsfile);
 		// the GDS root node
-		PdGDSObj Root = GDS_R_SEXP2Obj(getListElement(gdsfile, "root"));
+		PdGDSObj Root = GDS_R_SEXP2Obj(GetListElement(gdsfile, "root"));
 
 		// initialize selection
 		if (Sel.Sample.empty())
@@ -1312,7 +1313,7 @@ COREARRAY_DLL_EXPORT SEXP seq_SlidingWindow(SEXP gdsfile, SEXP var_name,
 			for (it=NodeList.begin(); it != NodeList.end(); it ++)
 			{
 				if (!it->NextCell())
-					throw ErrSeqArray("internal error in 'seq_SlidingWindow'");
+					throw ErrSeqArray("internal error in 'sqa_SlidingWindow'");
 			}
 		}
 
