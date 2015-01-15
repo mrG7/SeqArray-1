@@ -15,9 +15,6 @@ Big data management of genome-wide variants using the CoreArray library: genotyp
 * Bioconductor repository:
 ```
 source("http://bioconductor.org/biocLite.R")
-library(BiocInstaller)
-BiocInstaller::useDevel()
-
 biocLite("SeqArray")
 ```
 
