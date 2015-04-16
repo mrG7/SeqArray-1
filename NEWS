@@ -1,0 +1,106 @@
+CHANGES IN VERSION 1.7.1-1.7.5
+-------------------------
+
+    o bug fix in getting genotypes if position > 2^31
+
+    o add an option 'ignore.chr.prefix' to the function 'seqVCF2GDS'
+
+    o 'seqVCF2GDS' ignores the INFO or FORMAT variables if they are not
+      defined ahead
+
+	o a new action 'push+set' in the function 'seqSetFilter'
+
+    o bug fix if 'requireNamespace("SeqArray")' is called from other packages
+
+
+CHANGES IN VERSION 1.6.0
+-------------------------
+
+    o The version number was bumped for the Bioconductor release version
+
+
+CHANGES IN VERSION 1.5.1-1.5.2
+-------------------------
+
+    o fix a bug in 'seqVCF2GDS' when the values in the FILTER column are
+      all missing
+
+    o enhance 'seqVCF.Header'
+
+    o support the LinkingTo mechanism
+
+    o fix the error in haploid genotypes (Y chromosome)
+
+
+CHANGES IN VERSION 1.4.0
+-------------------------
+
+    o The version number was bumped for the Bioconductor release version
+
+
+CHANGES IN VERSION 1.3.1-1.3.4
+-------------------------
+
+    o update according to the new version of VariantAnnotation
+
+    o update test codes to avoid the conflict
+
+    o bumped version as all packages that depend on Rcpp must be rebuilt
+
+    o modify to new biocViews to DESCRIPTION file
+
+
+CHANGES IN VERSION 1.2.0
+-------------------------
+
+    o The version number was bumped for the Bioconductor release version
+
+
+CHANGES IN VERSION 1.1.4-1.1.5
+-------------------------
+
+    o add a new argument "action" to the function 'seqSetFilter'
+
+    o add a new function 'seqInfoNewVar' which allows adding new variables
+      to the INFO fields
+
+    o minor bug fix in asVCF
+
+    o update man page "SeqVarGDSClass-class.Rd" with new methods
+
+    o in DESCRIPTION, BiocGenerics listed in "Suggests" instead of "Imports"
+      as suggested by R CMD check
+
+    o bug fix in seqDelete
+
+    o revise the function 'seqTranspose' according to the update of
+      gdsfmt (v1.0.0)
+
+
+CHANGES IN VERSION 1.1.1-1.1.3
+-------------------------
+
+    o revise the argument 'var.index' in the function 'seqApply'
+
+    o basic supports of 'GRanges' and 'DNAStringSetList'
+
+    o added methods 'qual', 'filt', 'asVCF'
+
+    o 'granges' method uses length of reference allele to set width
+
+    o minor bug fix to avoid 'seqGetData' crashing when no value returned
+      from a variable-length variable
+
+    o update documents
+
+
+CHANGES IN VERSION 1.0.0
+-------------------------
+
+    o The version number was bumped for the Bioconductor release version
+
+
+CHANGES IN VERSION 0.99.0
+-------------------------
+
+    o first submission
